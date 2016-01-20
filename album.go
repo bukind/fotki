@@ -8,24 +8,25 @@ import (
     "os/exec"
     "path/filepath"
     "regexp"
-    "sort"
     "strconv"
     "strings"
 )
 
 type Album struct {
     root string
-		images map[string]ImageDate // good image -> their dates
-		failed map[string]error     // failed image -> error
+    images map[string]ImageDate // good image -> their dates
+    failed map[string]error     // failed image -> error
+    years  map[int]*YearDays    // year -> contents
 }
 
 
 func NewAlbum(rootdir string) *Album {
     self := new(Album)
-		self.root = rootdir
-		self.images = make(map[string]ImageDate)
-		self.failed = make(map[string]error)
-		return self
+    self.root = rootdir
+    self.images = make(map[string]ImageDate)
+    self.failed = make(map[string]error)
+    self.years  = make(map[int]*YearDays)
+    return self
 }
 
 
@@ -36,7 +37,10 @@ func (self *Album) String() string {
         fmt.Fprintf(buf, " %s => %s\n", img, date.String())
     }
     for img, err := range self.failed {
-        fmt.Fprintf(buf, "\n %s => Error %s\n", img, err.Error())
+        fmt.Fprintf(buf, " %s => Error %s\n", img, err.Error())
+    }
+    for _, data := range self.years {
+        fmt.Fprintln(buf, data.String())
     }
     return buf.String()
 }
@@ -71,14 +75,17 @@ func (self *Album) Scan(scandir string) error {
     }
 
     // load years
-    years := self.Years()
-    for _, year := range years {
-        ydir := NewYearDays(self, year)
-        if err := ydir.Scan(); err != nil {
-            return err
-        }
-        if Verbose {
-            fmt.Println(ydir.String())
+    yearmap := make(map[int]bool)
+    for _, d := range self.images {
+        yearmap[d.year] = true
+    }
+    for year, _ := range yearmap {
+        if _, ok := self.years[year]; !ok {
+            ydir := NewYearDays(self, year)
+            self.years[year] = ydir
+            if err := ydir.Scan(); err != nil {
+                return err
+            }
         }
     }
 
@@ -135,18 +142,4 @@ func (self *Album) ExtractImageDate(path string) (ImageDate, error) {
         err = fmt.Errorf("cannot detect the date")
     }
     return ret, err
-}
-
-
-func (self *Album) Years() []int {
-    years := make(map[int]bool)
-    for _, d := range self.images {
-        years[d.year] = true
-    }
-    res := make([]int, 0, len(years))
-    for year, _ := range years {
-        res = append(res,year)
-    }
-    sort.Ints(res)
-    return res
 }
