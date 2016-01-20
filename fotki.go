@@ -9,11 +9,23 @@ import (
 		"path/filepath"
 )
 
+
+func check(err error) {
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "fail:", err.Error())
+        os.Exit(1)
+    }
+}
+
+
 func main() {
     // temporary hardcoded
 		fotki.Verbose = true
     rootdir := filepath.Join(os.Getenv("HOME"), "Downloads")
     album := fotki.NewAlbum(rootdir)
-		album.Scan(rootdir)
-		fmt.Println(album.String())
+    check(album.Scan(rootdir))
+
+    if fotki.Verbose {
+        fmt.Println(album.String())
+    }
 }

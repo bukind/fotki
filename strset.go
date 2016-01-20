@@ -4,6 +4,13 @@ import "fmt"
 
 type StrSet map[string]bool
 
+func NewStrSet() *StrSet {
+    self := new(StrSet)
+    *self = make(map[string]bool)
+    return self
+}
+
+
 func (self *StrSet) Keys() []string {
     result := make([]string, 0, len(*self))
     for key := range *self {
