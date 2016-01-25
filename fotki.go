@@ -21,9 +21,12 @@ func check(err error) {
 func main() {
     // temporary hardcoded
 		fotki.Verbose = true
+    fotki.DryRun = true
     rootdir := filepath.Join(os.Getenv("HOME"), "Downloads")
     album := fotki.NewAlbum(rootdir)
     check(album.Scan(rootdir))
+
+    check(album.Relocate())
 
     if fotki.Verbose {
         fmt.Println(album.String())

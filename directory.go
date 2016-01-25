@@ -33,3 +33,9 @@ func (self *Directory) String() string {
 func (self *Directory) Add(item string) {
     self.items[item] = true
 }
+
+
+func (self *Directory) Has(item string) bool {
+    _, ok := self.items[item]
+    return ok
+}

@@ -143,3 +143,68 @@ func (self *Album) ExtractImageDate(path string) (ImageDate, error) {
     }
     return ret, err
 }
+
+
+// relocate found images
+func (self *Album) Relocate() error {
+    for image, date := range self.images {
+        // The image must be normalized to have only lowercase letters.
+        // There must be two destination, per-day and per-month.
+        // The per-day destination may have optional suffix:
+        // YEARDIR/YYYY-MM/pic.jpg
+        // YEARDIR/all/YYYY-MM-DD[-suffix]/pic.jpg
+
+        srcdir, srcname := filepath.Split(image)
+        dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
+
+        if Verbose {
+            fmt.Println("# processing", srcdir, srcname, date, "->", dstname)
+        }
+
+        dstdirs := make([]string,0)
+
+        year := self.years[date.year]
+        if year == nil {
+            fmt.Fprintf(os.Stderr, "year %d is not setup\n", date.year)
+            os.Exit(1)
+        }
+        var errx error
+        if dstdir, err := year.FindMonth(date, dstname); err == nil {
+            dstdirs = append(dstdirs, dstdir)
+        } else {
+            errx = err
+        }
+        if dstdir, err := year.FindDay(date, dstname); err == nil {
+            dstdirs = append(dstdirs, dstdir)
+        } else {
+            errx = err
+        }
+        if len(dstdirs) == 0 && errx != nil {
+            // both are failed
+            self.failed[image] = errx
+            continue
+        }
+
+        errx = nil
+        for _, dst := range dstdirs {
+            if err := self.MoveImage(image, dst); err != nil {
+                errx = err
+            }
+        }
+        if errx != nil {
+            self.failed[image] = errx
+        }
+    }
+    return nil
+}
+
+
+func (self *Album) MoveImage(src string, dst string) error {
+    if Verbose {
+        fmt.Println("# moving", src, "to", dst)
+    }
+    if DryRun {
+        return nil
+    }
+    return os.Rename(src, dst)
+}
