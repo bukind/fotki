@@ -14,9 +14,9 @@ days.  The day folder begins with `YYYY-MM-DD` and may have an optional
 suffix.
 
 The date of a photo is found using:
-1. from the EXIF data embedded into the photo;
-2. by parsing the name of the photo looking for patterns like
-   YYYYMMDD, etc.
+  * from the EXIF data embedded into the photo;
+  * by parsing the name of the photo looking for patterns like
+    YYYYMMDD, etc.
 
 Then the photo is placed into both month and day folder using the
 hardlink.  Thus the disk space is not wasted.
