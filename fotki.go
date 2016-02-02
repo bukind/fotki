@@ -3,6 +3,7 @@
 package main
 
 import (
+    "flag"
     "fmt"
 		"bukind/fotki"
 		"os"
@@ -19,12 +20,30 @@ func check(err error) {
 
 
 func main() {
-    // temporary hardcoded
-		fotki.Verbose = true
-    fotki.DryRun = true
-    rootdir := filepath.Join(os.Getenv("HOME"), "Downloads")
-    album := fotki.NewAlbum(rootdir)
-    check(album.Scan(rootdir))
+    flag.BoolVar(&fotki.Verbose, "v", false, "Be verbose")
+    flag.BoolVar(&fotki.DryRun, "n", false, "Dry-run")
+    scandir := flag.String("scan", "", "The directory to scan")
+    rootdir := flag.String("root", "", "The root directory of the album")
+
+    flag.Parse()
+
+    if fotki.Verbose {
+        fmt.Println("# scandir=", *scandir)
+        fmt.Println("# rootdir=", *rootdir)
+    }
+
+    if *scandir == "" {
+        fmt.Fprintln(os.Stderr, "scan flag is required")
+        os.Exit(1)
+    }
+
+    if *rootdir == "" {
+        fmt.Fprintln(os.Stderr, "root flag is required")
+        os.Exit(1)
+    }
+
+    album := fotki.NewAlbum(*rootdir)
+    check(album.Scan(*scandir))
 
     check(album.Relocate())
 
