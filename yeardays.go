@@ -214,6 +214,9 @@ func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) 
 
 func (self *YearDays) MakeAllDirs() error {
     for _, dir := range self.tomake {
+        if Verbose {
+            fmt.Println("# mkdir", dir)
+        }
         if err := os.MkdirAll(dir, 0755); err != nil {
             return err
         }
