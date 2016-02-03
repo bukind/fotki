@@ -211,10 +211,10 @@ func (self *Album) Relocate() error {
 
 func (self *Album) MoveImage(src string, dst string) error {
     if Verbose {
-        fmt.Println("# moving", src, "to", dst)
+        fmt.Println("# linking", src, "from", dst)
     }
     if DryRun {
         return nil
     }
-    return os.Rename(src, dst)
+    return os.Link(src, dst)
 }
