@@ -13,11 +13,12 @@ import (
 type YearDays struct {
     album    *Album  // backlink to album
     year     int
-    daydirs  map[string]*Directory
-		day2dir  map[ImageDate]*StrSet
-    mon2dir  map[int]*Directory  // month -> directory
-		garbage  *StrSet
+    daydirs  map[string]*Directory  // directory for the day
+	day2dir  map[ImageDate]*StrSet  // mapping date -> set of dirs
+    mon2dir  map[int]*Directory     // month -> directory
+	garbage  *StrSet
     basedir  string
+    tomake   []string               // list of directories to make
 }
 
 
@@ -25,12 +26,12 @@ func NewYearDays(album *Album, year int) *YearDays {
     self := new(YearDays)
     self.album = album
     self.year = year
-		self.daydirs = make(map[string]*Directory)
-		self.day2dir = make(map[ImageDate]*StrSet)
+	self.daydirs = make(map[string]*Directory)
+	self.day2dir = make(map[ImageDate]*StrSet)
     self.mon2dir = make(map[int]*Directory)
-		self.garbage = NewStrSet()
+	self.garbage = NewStrSet()
     self.basedir = filepath.Join(self.album.root, strconv.Itoa(self.year))
-		return self
+	return self
 }
 
 
@@ -44,21 +45,24 @@ func (self *YearDays) MakePath(elts ...string) string {
 func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
     fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.MakePath("all"))
-		for k, v := range self.day2dir {
-		    fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
-		}
-		fmt.Fprintf(buf, " .garbage: %s\n", self.garbage.String())
-		return buf.String()
+	for k, v := range self.day2dir {
+	    fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
+	}
+	fmt.Fprintf(buf, " .garbage: %s\n", self.garbage.String())
+	return buf.String()
 }
 
 
-func (self *YearDays) get_mondir(month int) *Directory {
+// return the directory and the flag if it was just made
+func (self *YearDays) get_mondir(month int) (*Directory, bool) {
     mondir := self.mon2dir[month]
+    justmade := false
     if mondir == nil {
         mondir = NewDirectory()
         self.mon2dir[month] = mondir
+        justmade = true
     }
-    return mondir
+    return mondir, justmade
 }
 
 
@@ -142,7 +146,8 @@ func (self *YearDays) Scan() error {
                 }
             }
 
-            self.get_mondir(mon).Add(info.Name())
+            dir, _ := self.get_mondir(mon)
+            dir.Add(info.Name())
             return nil
         }
 
@@ -187,6 +192,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
     if dir == nil {
         dir = NewDirectory()
         self.daydirs[dirname] = dir
+        self.tomake = append(self.tomake, self.MakePath("all", dirname))
     }
     dir.Add(dstname)
     return self.MakePath("all", dirname, dstname), nil
@@ -194,12 +200,26 @@ func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
 
 
 func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) {
-    dir := self.get_mondir(date.month)
+    dir, justmade := self.get_mondir(date.month)
     if dir.Has(dstname) {
         return "", fmt.Errorf("file exists @ %d-%d", self.year, date.month)
     }
     dir.Add(dstname)
+    if justmade {
+        self.tomake = append(self.tomake, self.MakePath(date.MonthString()))
+    }
     return self.MakePath(date.MonthString(), dstname), nil
+}
+
+
+func (self *YearDays) MakeAllDirs() error {
+    for _, dir := range self.tomake {
+        if err := os.MkdirAll(dir, 0755); err != nil {
+            return err
+        }
+    }
+    self.tomake = nil
+    return nil
 }
 
 

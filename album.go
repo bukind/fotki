@@ -195,7 +195,11 @@ func (self *Album) Relocate() error {
             continue
         }
 
-        errx = nil
+        if err := year.MakeAllDirs(); err != nil {
+            // failed to create dir
+            return err
+        }
+
         for _, dst := range dstdirs {
             if err := self.MoveImage(image, dst); err != nil {
                 errx = err
