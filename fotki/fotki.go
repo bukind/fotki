@@ -1,13 +1,10 @@
-// +build ignore
-
 package main
 
 import (
     "flag"
     "fmt"
-		"bukind/fotki"
-		"os"
-		"path/filepath"
+	"github.com/bukind/fotki"
+	"os"
 )
 
 

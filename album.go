@@ -48,6 +48,7 @@ func (self *Album) String() string {
 
 func (self *Album) Scan(scandir string) error {
 
+    var images []string
     walkFun := func (path string, info os.FileInfo, err error) error {
         if !info.Mode().IsRegular() {
             // we are only interested in the regular files
@@ -60,18 +61,27 @@ func (self *Album) Scan(scandir string) error {
         ext := strings.ToLower(filepath.Ext(info.Name()))
         switch ext {
             case ".jpg", ".png", ".jpeg":
-                date, err := self.ExtractImageDate(path)
-                if err == nil {
-                    self.images[path] = date
-                } else {
-                    self.failed[path] = err
-                }
+                images = append(images, path)
+            // TODO: should we add something to garbage here
         }
         return nil
     }
 
     if err := filepath.Walk(scandir, walkFun); err != nil {
         return err
+    }
+
+    for i, path := range images {
+         // scan is going to be here
+         if Verbose {
+             fmt.Printf("# scanning %d/%d %s\n", i, len(images), path)
+         }
+         date, err := self.ExtractImageDate(path)
+         if err == nil {
+              self.images[path] = date
+         } else {
+              self.failed[path] = err
+         }
     }
 
     // load years
