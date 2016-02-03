@@ -224,17 +224,3 @@ func (self *YearDays) MakeAllDirs() error {
     self.tomake = nil
     return nil
 }
-
-
-func (self *YearDays) MoveImage(src string, dsts []string, dryrun bool) {
-    for _, dst := range dsts {
-        if Verbose {
-            fmt.Println("# moving %s to %s", src, dst)
-        }
-        if dryrun {
-            continue
-        }
-        if err := os.Rename(src, dst); err != nil {
-        }
-    }
-}
