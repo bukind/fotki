@@ -3,8 +3,8 @@ package main
 import (
     "flag"
     "fmt"
-	"github.com/bukind/fotki"
-	"os"
+    "github.com/bukind/fotki"
+    "os"
 )
 
 

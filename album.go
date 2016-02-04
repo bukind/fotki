@@ -10,6 +10,7 @@ import (
     "regexp"
     "strconv"
     "strings"
+    "sync"
 )
 
 type Album struct {
@@ -71,18 +72,68 @@ func (self *Album) Scan(scandir string) error {
         return err
     }
 
-    for i, path := range images {
-         // scan is going to be here
-         if Verbose {
-             fmt.Printf("# scanning %d/%d %s\n", i, len(images), path)
-         }
-         date, err := self.ExtractImageDate(path)
-         if err == nil {
-              self.images[path] = date
-         } else {
-              self.failed[path] = err
-         }
+    type Result struct {
+        path string
+        date ImageDate
+        err  error
     }
+
+    done := make(chan int) // is not used for now
+    feed := make(chan string)
+    resc := make(chan Result)
+
+    const ScannerCount = 8
+    var wg sync.WaitGroup
+    for i := 0; i < ScannerCount; i++ {
+
+        // create a scanning goroutine
+        wg.Add(1)
+        go func(done <-chan int, feed <-chan string, out chan<-Result) {
+            defer wg.Done()
+            for path := range feed {
+                date, err := self.ExtractImageDate(path)
+                select {
+                case <-done:
+                    // cancelled
+                    return
+                case resc <- Result{path, date, err}:
+                    // continue
+                }
+            }
+        }(done, feed, resc)
+
+    }
+
+
+    // start a consumer goroutine
+    wg.Add(1)
+    go func(done <-chan int, resc <-chan Result, total int) {
+        defer wg.Done()
+        for count := 0; count < total; count++ {
+            select {
+            case <-done:
+                return
+            case res := <-resc:
+                if Verbose {
+                    fmt.Printf("# scanned %d/%d %s\n", count+1, total, res.path)
+                }
+                if res.err == nil {
+                    self.images[res.path] = res.date
+                } else {
+                    self.failed[res.path] = res.err
+                }
+            }
+        }
+    }(done, resc, len(images))
+
+    // send paths to the scanners
+    for _, path := range images {
+        feed <- path
+    }
+    close(feed)
+    wg.Wait()
+    close(resc)
+    close(done)
 
     // load years
     yearmap := make(map[int]bool)

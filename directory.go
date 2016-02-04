@@ -18,10 +18,10 @@ func NewDirectory() *Directory {
 
 func (self *Directory) Contents() []string {
     result := make([]string, 0, len(self.items))
-		for key := range self.items {
-		    result = append(result, key)
-		}
-		return result
+        for key := range self.items {
+            result = append(result, key)
+        }
+        return result
 }
 
 

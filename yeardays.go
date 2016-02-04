@@ -14,9 +14,9 @@ type YearDays struct {
     album    *Album  // backlink to album
     year     int
     daydirs  map[string]*Directory  // directory for the day
-	day2dir  map[ImageDate]*StrSet  // mapping date -> set of dirs
+    day2dir  map[ImageDate]*StrSet  // mapping date -> set of dirs
     mon2dir  map[int]*Directory     // month -> directory
-	garbage  *StrSet
+    garbage  *StrSet
     basedir  string
     tomake   []string               // list of directories to make
 }
@@ -26,12 +26,12 @@ func NewYearDays(album *Album, year int) *YearDays {
     self := new(YearDays)
     self.album = album
     self.year = year
-	self.daydirs = make(map[string]*Directory)
-	self.day2dir = make(map[ImageDate]*StrSet)
+    self.daydirs = make(map[string]*Directory)
+    self.day2dir = make(map[ImageDate]*StrSet)
     self.mon2dir = make(map[int]*Directory)
-	self.garbage = NewStrSet()
+    self.garbage = NewStrSet()
     self.basedir = filepath.Join(self.album.root, strconv.Itoa(self.year))
-	return self
+    return self
 }
 
 
@@ -45,11 +45,11 @@ func (self *YearDays) MakePath(elts ...string) string {
 func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
     fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.MakePath("all"))
-	for k, v := range self.day2dir {
-	    fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
-	}
-	fmt.Fprintf(buf, " .garbage: %s\n", self.garbage.String())
-	return buf.String()
+    for k, v := range self.day2dir {
+        fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
+    }
+    fmt.Fprintf(buf, " .garbage: %s\n", self.garbage.String())
+    return buf.String()
 }
 
 
