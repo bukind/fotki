@@ -217,6 +217,9 @@ func (self *YearDays) MakeAllDirs() error {
         if Verbose {
             fmt.Println("# mkdir", dir)
         }
+        if DryRun {
+            continue
+        }
         if err := os.MkdirAll(dir, 0755); err != nil {
             return err
         }
