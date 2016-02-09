@@ -20,7 +20,7 @@ func main() {
         err    error
     }
 
-    done := make(chan int)
+    // done := make(chan int)
     feed := make(chan int)
     resc := make(chan ResErr)
 
@@ -29,7 +29,8 @@ func main() {
     for i := 0; i < routines; i++ {
         wg.Add(1)
         // read from feed, check done for completion
-        go func(idx int, done <-chan int, feed <-chan int, resc chan<- ResErr) {
+        go func(idx int, // done <-chan int,
+                feed <-chan int, resc chan<- ResErr) {
             fmt.Printf("func #%d STARTED\n", idx)
             defer wg.Done()
             defer fmt.Printf("func #%d EXITING\n", idx)
@@ -37,9 +38,7 @@ func main() {
 
                 // leading wait
                 select {
-                case <-done:
-                    // cancelled
-                    return
+                // case <-done: return
                 case <-time.After(Delay):
                     // continue
                 }
@@ -51,26 +50,26 @@ func main() {
                 }
 
                 select {
-                case <-done:
-                    return
+                // case <-done: return
                 case resc <- tmp:
                     // continue
                 }
                 fmt.Printf("func #%d done %d\n", idx, value)
             }
-        }(i, done, feed, resc)
+        }(i, // done,
+          feed, resc)
     }
 
     // start consumer
     wg.Add(1)
-    go func(done <-chan int, resc <-chan ResErr) {
+    go func(// done <-chan int,
+            resc <-chan ResErr) {
         defer wg.Done()
         defer fmt.Println("consumer EXITING")
         fmt.Println("consumer STARTED")
         for {
             select {
-            case <-done:
-                return
+            // case <-done: return
             case res := <-resc:
                 if res.err != nil {
                     fmt.Printf("value #%d -> %s\n", res.result, res.err.Error())
@@ -79,15 +78,15 @@ func main() {
                 }
             }
         }
-    }(done, resc)
+    }(// done,
+      resc)
 
     // pass data to the routines
-    tmo := time.After(2*time.Second)
-feed:
+    // tmo := time.After(2*time.Second)
+// feed:
     for _, value := range list {
         select {
-        case <-tmo:
-            break feed
+        // case <-tmo: break feed
         case feed <- value:
             // continue
         }
@@ -95,7 +94,7 @@ feed:
     close(feed)
 
     fmt.Println("closing done")
-    close(done)
+    // close(done)
 
     wg.Wait()
 }
