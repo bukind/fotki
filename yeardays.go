@@ -214,15 +214,35 @@ func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) 
 
 func (self *YearDays) MakeAllDirs() error {
     for _, dir := range self.tomake {
-        if Verbose {
-            fmt.Println("# mkdir", dir)
+        // check if the dir is usable
+        info, err := os.Lstat(dir)
+        if err != nil {
+            // failed to stat, try to create
+            if Verbose {
+                fmt.Println("# mkdir", dir)
+            }
+            if DryRun {
+                continue
+            }
+            if err = os.MkdirAll(dir, 0755); err != nil {
+                return err
+            }
+        } else if ! info.IsDir() {
+            return fmt.Errorf("The %s is not a dir", dir)
+        } else if Verbose {
+            fmt.Println("# check", dir)
+            if DryRun {
+                continue
+            }
         }
-        if DryRun {
-            continue
+        // directory exists, try to create a file
+        timestr := time.Now().Format(time.RFC3339Nano)
+        fname := filepath.Join(dir, strings.Replace(timestr, ":", ".", -1))
+        if fd, err := os.Create(fname); err != nil {
+            return fmt.Errorf("Cannot create files in %s", dir)
         }
-        if err := os.MkdirAll(dir, 0755); err != nil {
-            return err
-        }
+        _ = fd.Close()
+        _ = os.Remove(fname)
     }
     self.tomake = nil
     return nil
