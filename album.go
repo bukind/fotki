@@ -260,6 +260,13 @@ func (self *Album) Relocate() error {
             self.failed[image] = errx
         }
     }
+
+    // normalize years
+    for _, year := range self.years {
+        if err := year.NormalizeDirs(); err != nil {
+            return err
+        }
+    }
     return nil
 }
 

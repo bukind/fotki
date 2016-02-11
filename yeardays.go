@@ -6,6 +6,7 @@ import (
     "os"
     "path/filepath"
     "regexp"
+    "sort"
     "strconv"
     "strings"
     "time"
@@ -78,7 +79,7 @@ func (self *YearDays) Scan() error {
     dayscandir := self.makePath(daybase)
     monscandir := self.makePath(monbase)
 
-    yearPerDayRegex := regexp.MustCompile(`^(20[0123]\d)-(0[1-9]|1[012])-(0[1-9]|[123]\d)`)
+    yearPerDayRegex := regexp.MustCompile(`^(20[0123]\d)[-_](0[1-9]|1[012])[-_](0[1-9]|[123]\d)`)
 
     if Verbose {
         fmt.Println("# scanning", dayscandir)
@@ -281,5 +282,32 @@ func (self *YearDays) MakeAllDirs() error {
         }
     }
     self.tomake = nil
+    return nil
+}
+
+
+func (self *YearDays) NormalizeDirs() error {
+    dirs := make([]string, 0, len(self.daydirs))
+    for dir, _ := range self.daydirs {
+        dirs = append(dirs, dir)
+    }
+    sort.Strings(dirs)
+    for _, src := range dirs {
+        dst := strings.Replace(src, "_", "-", -1)
+        if src != dst {
+            continue
+        }
+        src = self.makePath(daybase, src)
+        dst = self.makePath(daybase, dst)
+        if Verbose {
+            fmt.Println("# normalize", src, "->", dst)
+        }
+        if DryRun {
+            continue
+        }
+        if err := os.Rename(src,dst); err != nil {
+            return err
+        }
+    }
     return nil
 }
