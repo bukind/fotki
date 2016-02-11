@@ -238,11 +238,15 @@ func (self *Album) Relocate() error {
 
         if dstdir, err := year.FindMonth(date, dstname, srcinfo); err == nil {
             dstdirs = append(dstdirs, dstdir)
+        } else if err == SameFile {
+            errx = nil
         } else {
             errx = err
         }
         if dstdir, err := year.FindDay(date, dstname, srcinfo); err == nil {
             dstdirs = append(dstdirs, dstdir)
+        } else if err == SameFile {
+            errx = nil
         } else {
             errx = err
         }

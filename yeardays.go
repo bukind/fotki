@@ -184,8 +184,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
             found = dirname
             dir := self.daydirs[dirname]
             if dir.Has(dstname) {
-                // self.comp"", fmt.Errorf("file exists @ %s", dirname)
-                return self.compareInfo(dir, dstname, srcinfo)
+                return self.compareInfo(dir.Path(dstname), srcinfo)
             }
         }
         // file is not found in subdirs
@@ -218,8 +217,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
 func (self *YearDays) FindMonth(date ImageDate, dstname string, srcinfo os.FileInfo) (string, error) {
     dir, justmade := self.get_mondir(date.month)
     if dir.Has(dstname) {
-        // return "", fmt.Errorf("file exists @ %d-%d", self.year, date.month)
-        return self.compareInfo(dir, dstname, srcinfo)
+        return self.compareInfo(dir.Path(dstname), srcinfo)
     }
     dir.Add(dstname)
     if justmade {
@@ -229,9 +227,16 @@ func (self *YearDays) FindMonth(date ImageDate, dstname string, srcinfo os.FileI
 }
 
 
-func (self *YearDays) compareInfo(dir *Directory, dstname string, srcinfo os.FileInfo) (string, error) {
-    _ = srcinfo
-    return "", fmt.Errorf("file exists %s", dir.Path(dstname))
+// check if the destination is the same as origin
+func (self *YearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, error) {
+    dstinfo, err := os.Stat(dst)
+    if err != nil {
+        return "", fmt.Errorf("cannot stat %s: %s", dst, err.Error())
+    }
+    if os.SameFile(dstinfo, srcinfo) {
+        return "", SameFile
+    }
+    return "", fmt.Errorf("file exists %s", dst)
 }
 
 
