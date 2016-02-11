@@ -15,7 +15,7 @@ import (
 
 type Album struct {
     root string
-    images map[string]ImageDate // good image -> their dates
+    images map[string]ImageInfo // good image -> their infos
     failed map[string]error     // failed image -> error
     years  map[int]*YearDays    // year -> contents
 }
@@ -24,7 +24,7 @@ type Album struct {
 func NewAlbum(rootdir string) *Album {
     self := new(Album)
     self.root = rootdir
-    self.images = make(map[string]ImageDate)
+    self.images = make(map[string]ImageInfo)
     self.failed = make(map[string]error)
     self.years  = make(map[int]*YearDays)
     return self
@@ -34,8 +34,8 @@ func NewAlbum(rootdir string) *Album {
 func (self *Album) String() string {
     buf := new(bytes.Buffer)
     fmt.Fprintf(buf, "root=%s\n", self.root)
-    for img, date := range self.images {
-        fmt.Fprintf(buf, " %s => %s\n", img, date.String())
+    for img, info := range self.images {
+        fmt.Fprintf(buf, " %s => %s\n", img, info.String())
     }
     for img, err := range self.failed {
         fmt.Fprintf(buf, " %s => Error %s\n", img, err.Error())
@@ -49,7 +49,11 @@ func (self *Album) String() string {
 
 func (self *Album) Scan(scandir string) error {
 
-    var images []string
+    type Image struct {
+        path string
+        info os.FileInfo
+    }
+    var imagelist []Image
     walkFun := func (path string, info os.FileInfo, err error) error {
         if !info.Mode().IsRegular() {
             // we are only interested in the regular files
@@ -62,7 +66,7 @@ func (self *Album) Scan(scandir string) error {
         ext := strings.ToLower(filepath.Ext(info.Name()))
         switch ext {
             case ".jpg", ".png", ".jpeg":
-                images = append(images, path)
+                imagelist = append(imagelist, Image{path,info})
             // TODO: should we add something to garbage here
         }
         return nil
@@ -74,12 +78,12 @@ func (self *Album) Scan(scandir string) error {
 
     type Result struct {
         path string
-        date ImageDate
+        info ImageInfo
         err  error
     }
 
     done := make(chan int) // is not used for now
-    feed := make(chan string)
+    feed := make(chan Image)
     resc := make(chan Result)
 
     const ScannerCount = 8
@@ -88,15 +92,15 @@ func (self *Album) Scan(scandir string) error {
 
         // create a scanning goroutine
         wg.Add(1)
-        go func(done <-chan int, feed <-chan string, out chan<-Result) {
+        go func(done <-chan int, feed <-chan Image, out chan<-Result) {
             defer wg.Done()
-            for path := range feed {
-                date, err := self.ExtractImageDate(path)
+            for image := range feed {
+                date, err := self.ExtractImageDate(image.path)
                 select {
                 case <-done:
                     // cancelled
                     return
-                case resc <- Result{path, date, err}:
+                case resc <- Result{image.path, ImageInfo{date, image.info}, err}:
                     // continue
                 }
             }
@@ -118,17 +122,17 @@ func (self *Album) Scan(scandir string) error {
                     fmt.Printf("# scanned %d/%d %s\n", count+1, total, res.path)
                 }
                 if res.err == nil {
-                    self.images[res.path] = res.date
+                    self.images[res.path] = res.info
                 } else {
                     self.failed[res.path] = res.err
                 }
             }
         }
-    }(done, resc, len(images))
+    }(done, resc, len(imagelist))
 
     // send paths to the scanners
-    for _, path := range images {
-        feed <- path
+    for _, image := range imagelist {
+        feed <- image
     }
     close(feed)
     wg.Wait()
@@ -137,8 +141,8 @@ func (self *Album) Scan(scandir string) error {
 
     // load years
     yearmap := make(map[int]bool)
-    for _, d := range self.images {
-        yearmap[d.year] = true
+    for _, info := range self.images {
+        yearmap[info.date.year] = true
     }
     for year, _ := range yearmap {
         if _, ok := self.years[year]; !ok {
@@ -208,42 +212,36 @@ func (self *Album) ExtractImageDate(path string) (ImageDate, error) {
 
 // relocate found images
 func (self *Album) Relocate() error {
-    for image, date := range self.images {
+    for image, info := range self.images {
         // The image must be normalized to have only lowercase letters.
         // There must be two destination, per-day and per-month.
         // The per-day destination may have optional suffix:
-        // YEARDIR/YYYY-MM/pic.jpg
-        // YEARDIR/all/YYYY-MM-DD[-suffix]/pic.jpg
+        // YEARDIR/all/YYYY-MM/pic.jpg
+        // YEARDIR/YYYY-MM-DD[-suffix]/pic.jpg
 
         srcdir, srcname := filepath.Split(image)
         dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
 
         if Verbose {
-            fmt.Println("# processing", srcdir, srcname, date, "->", dstname)
+            fmt.Println("# processing", srcdir, srcname, info.date, "->", dstname)
         }
 
         dstdirs := make([]string,0)
 
-        year := self.years[date.year]
+        year := self.years[info.date.year]
         if year == nil {
-            fmt.Fprintf(os.Stderr, "year %d is not setup\n", date.year)
+            fmt.Fprintf(os.Stderr, "year %d is not setup\n", info.date.year)
             os.Exit(1)
         }
         var errx error
-        srcinfo, errx := os.Stat(image)
-        if errx != nil {
-            self.failed[image] = errx
-            continue
-        }
-
-        if dstdir, err := year.FindMonth(date, dstname, srcinfo); err == nil {
+        if dstdir, err := year.FindMonth(info.date, dstname, info.info); err == nil {
             dstdirs = append(dstdirs, dstdir)
         } else if err == SameFile {
             errx = nil
         } else {
             errx = err
         }
-        if dstdir, err := year.FindDay(date, dstname, srcinfo); err == nil {
+        if dstdir, err := year.FindDay(info.date, dstname, info.info); err == nil {
             dstdirs = append(dstdirs, dstdir)
         } else if err == SameFile {
             errx = nil
