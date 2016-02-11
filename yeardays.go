@@ -294,7 +294,7 @@ func (self *YearDays) NormalizeDirs() error {
     sort.Strings(dirs)
     for _, src := range dirs {
         dst := strings.Replace(src, "_", "-", -1)
-        if src != dst {
+        if src == dst {
             continue
         }
         src = self.makePath(daybase, src)
