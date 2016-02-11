@@ -222,12 +222,14 @@ func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) 
 }
 
 
-func makedir(dir string) (FileInfo, error) {
+func makedir(dir string) (os.FileInfo, error) {
     info, err := os.Lstat(dir)
     if err == nil {
-        return info, err
-    } else if !info.IsDir() {
-        return info, fmt.Errorf("%s is not a dir", dir)
+        if info.IsDir() {
+            return info, err
+        } else {
+            return info, fmt.Errorf("%s is not a dir", dir)
+        }
     }
     // get the parent dir
     info2, err := makedir(filepath.Dir(dir))
