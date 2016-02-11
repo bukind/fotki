@@ -16,13 +16,14 @@ import (
 const daybase = ""
 const monbase = "all"
 
+
 type YearDays struct {
     album    *Album  // backlink to album
     year     int
-    daydirs  map[string]*Directory  // directory for the day
-    day2dir  map[ImageDate]*StrSet  // mapping date -> set of dirs
+    daydirs  map[string]*Directory  // relative dirpath -> directory for the day
+    day2dir  map[ImageDate]*StrSet  // mapping date -> set of relative dirpath
     mon2dir  map[int]*Directory     // month -> directory
-    garbage  *StrSet
+    garbage  *StrSet                // relative path
     basedir  string
     tomake   []string               // list of directories to make
 }
@@ -41,16 +42,18 @@ func NewYearDays(album *Album, year int) *YearDays {
 }
 
 
+/*
 func (self *YearDays) makePath(elts ...string) string {
     s := []string{self.basedir}
     s = append(s, elts...)
     return filepath.Join(s...)
 }
+ */
 
 
 func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
-    fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.makePath())
+    fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.basedir)
     for k, v := range self.day2dir {
         fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
     }
@@ -64,7 +67,7 @@ func (self *YearDays) get_mondir(month int) (*Directory, bool) {
     mondir := self.mon2dir[month]
     justmade := false
     if mondir == nil {
-        mondir = NewDirectory()
+        mondir = NewDirectory(self.basedir, monbase, fmt.Sprintf("%02d", month))
         self.mon2dir[month] = mondir
         justmade = true
     }
@@ -76,8 +79,8 @@ func (self *YearDays) Scan() error {
 
     // scanning day dirs
 
-    dayscandir := self.makePath(daybase)
-    monscandir := self.makePath(monbase)
+    dayscandir := NewDirectory(self.basedir, daybase).Path()
+    monscandir := NewDirectory(self.basedir, monbase).Path()
 
     yearPerDayRegex := regexp.MustCompile(`^(20[0123]\d)[-_](0[1-9]|1[012])[-_](0[1-9]|[123]\d)`)
 
@@ -112,7 +115,7 @@ func (self *YearDays) Scan() error {
                 if _, ok := self.day2dir[date]; !ok {
                     self.day2dir[date] = NewStrSet()
                 }
-                self.daydirs[info.Name()] = NewDirectory()
+                self.daydirs[info.Name()] = NewDirectory(path)
                 strset := self.day2dir[date]
                 strset.Add(info.Name())
                 // TODO: start subwalk
@@ -134,7 +137,7 @@ func (self *YearDays) Scan() error {
 
     // scanning month dirs
     for mon := 1; mon <= 12; mon++ {
-        scandir := self.makePath(monbase, fmt.Sprintf("%02d", mon))
+        scandir := NewDirectory(self.basedir, monbase, fmt.Sprintf("%02d", mon)).Path()
 
         if Verbose {
             fmt.Println("# scanning", scandir)
@@ -171,7 +174,7 @@ func (self *YearDays) Scan() error {
 
 
 /// find a suitable location to place an image, or return error
-func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
+func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInfo) (string, error) {
     var dirset *StrSet
     var ok bool
     if dirset, ok = self.day2dir[date]; ok {
@@ -181,14 +184,16 @@ func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
             found = dirname
             dir := self.daydirs[dirname]
             if dir.Has(dstname) {
-                return "", fmt.Errorf("file exists @ %s", dirname)
+                // self.comp"", fmt.Errorf("file exists @ %s", dirname)
+                return self.compareInfo(dir, dstname, srcinfo)
             }
         }
         // file is not found in subdirs
         if dirset.Len() == 1 {
             // only one subdir
-            self.daydirs[found].Add(dstname)  // update the output
-            return self.makePath(found, dstname), nil
+            dir := self.daydirs[found]
+            dir.Add(dstname)  // update the output
+            return dir.Path(dstname), nil
         }
     } else {
         // no dirset exists
@@ -200,26 +205,33 @@ func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
     dirset.Add(dirname)
     dir := self.daydirs[dirname]
     if dir == nil {
-        dir = NewDirectory()
+        // just has been made
+        dir = NewDirectory(self.basedir, daybase, dirname)
         self.daydirs[dirname] = dir
-        self.tomake = append(self.tomake, self.makePath(dirname))
+        self.tomake = append(self.tomake, dir.Path())
     }
     dir.Add(dstname)
-    return self.makePath(dirname, dstname), nil
+    return dir.Path(), nil
 }
 
 
-func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) {
+func (self *YearDays) FindMonth(date ImageDate, dstname string, srcinfo os.FileInfo) (string, error) {
     dir, justmade := self.get_mondir(date.month)
     if dir.Has(dstname) {
-        return "", fmt.Errorf("file exists @ %d-%d", self.year, date.month)
+        // return "", fmt.Errorf("file exists @ %d-%d", self.year, date.month)
+        return self.compareInfo(dir, dstname, srcinfo)
     }
     dir.Add(dstname)
     if justmade {
-        monpath := self.makePath(monbase, fmt.Sprintf("%02d", date.month))
-        self.tomake = append(self.tomake, monpath)
+        self.tomake = append(self.tomake, dir.Path())
     }
-    return self.makePath(monbase, fmt.Sprintf("%02d", date.month), dstname), nil
+    return dir.Path(dstname), nil
+}
+
+
+func (self *YearDays) compareInfo(dir *Directory, dstname string, srcinfo os.FileInfo) (string, error) {
+    _ = srcinfo
+    return "", fmt.Errorf("file exists %s", dir.Path(dstname))
 }
 
 
@@ -297,8 +309,8 @@ func (self *YearDays) NormalizeDirs() error {
         if src == dst {
             continue
         }
-        src = self.makePath(daybase, src)
-        dst = self.makePath(daybase, dst)
+        src = NewDirectory(self.basedir, daybase, src).Path()
+        dst = NewDirectory(self.basedir, daybase, dst).Path()
         if Verbose {
             fmt.Println("# normalize", src, "->", dst)
         }

@@ -230,19 +230,27 @@ func (self *Album) Relocate() error {
             os.Exit(1)
         }
         var errx error
-        if dstdir, err := year.FindMonth(date, dstname); err == nil {
-            dstdirs = append(dstdirs, dstdir)
-        } else {
-            errx = err
-        }
-        if dstdir, err := year.FindDay(date, dstname); err == nil {
-            dstdirs = append(dstdirs, dstdir)
-        } else {
-            errx = err
-        }
-        if len(dstdirs) == 0 && errx != nil {
-            // both are failed
+        srcinfo, errx := os.Stat(image)
+        if errx != nil {
             self.failed[image] = errx
+            continue
+        }
+
+        if dstdir, err := year.FindMonth(date, dstname, srcinfo); err == nil {
+            dstdirs = append(dstdirs, dstdir)
+        } else {
+            errx = err
+        }
+        if dstdir, err := year.FindDay(date, dstname, srcinfo); err == nil {
+            dstdirs = append(dstdirs, dstdir)
+        } else {
+            errx = err
+        }
+        if len(dstdirs) == 0 {
+            // both are failed
+            if errx != nil {
+                self.failed[image] = errx
+            }
             continue
         }
 
