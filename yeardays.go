@@ -7,6 +7,8 @@ import (
     "path/filepath"
     "regexp"
     "strconv"
+    "strings"
+    "time"
 )
 
 
@@ -44,7 +46,7 @@ func (self *YearDays) MakePath(elts ...string) string {
 
 func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
-    fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.MakePath("all"))
+    fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.MakePath())
     for k, v := range self.day2dir {
         fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
     }
@@ -70,7 +72,9 @@ func (self *YearDays) Scan() error {
 
     // scanning day dirs
 
-    scandir := self.MakePath("all")
+    scandir := self.MakePath()
+    monthscandir := self.MakePath("all")
+
     yearPerDayRegex := regexp.MustCompile(`^(20[0123]\d)-(0[1-9]|1[012])-(0[1-9]|[123]\d)`)
 
     if Verbose {
@@ -87,6 +91,9 @@ func (self *YearDays) Scan() error {
             if path == scandir {
                 // the scandir itself - ignore
                 return nil
+            } else if path == monthscandir {
+                // the basedir for month - skip
+                return filepath.SkipDir
             }
             if Verbose {
                 fmt.Println("# dir",path)
@@ -123,8 +130,7 @@ func (self *YearDays) Scan() error {
 
     // scanning month dirs
     for mon := 1; mon <= 12; mon++ {
-        mondate := ImageDate{self.year, mon, 1}
-        scandir := self.MakePath(mondate.MonthString())
+        scandir := self.MakePath("all", fmt.Sprintf("%02d", mon))
 
         if Verbose {
             fmt.Println("# scanning", scandir)
@@ -178,7 +184,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
         if dirset.Len() == 1 {
             // only one subdir
             self.daydirs[found].Add(dstname)  // update the output
-            return self.MakePath("all", found, dstname), nil
+            return self.MakePath(found, dstname), nil
         }
     } else {
         // no dirset exists
@@ -192,10 +198,10 @@ func (self *YearDays) FindDay(date ImageDate, dstname string) (string, error) {
     if dir == nil {
         dir = NewDirectory()
         self.daydirs[dirname] = dir
-        self.tomake = append(self.tomake, self.MakePath("all", dirname))
+        self.tomake = append(self.tomake, self.MakePath(dirname))
     }
     dir.Add(dstname)
-    return self.MakePath("all", dirname, dstname), nil
+    return self.MakePath(dirname, dstname), nil
 }
 
 
@@ -206,9 +212,10 @@ func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) 
     }
     dir.Add(dstname)
     if justmade {
-        self.tomake = append(self.tomake, self.MakePath(date.MonthString()))
+        monpath := self.MakePath("all", fmt.Sprintf("%02d",date.month))
+        self.tomake = append(self.tomake, monpath)
     }
-    return self.MakePath(date.MonthString(), dstname), nil
+    return self.MakePath("all", fmt.Sprintf("%02d", date.month), dstname), nil
 }
 
 
@@ -238,11 +245,20 @@ func (self *YearDays) MakeAllDirs() error {
         // directory exists, try to create a file
         timestr := time.Now().Format(time.RFC3339Nano)
         fname := filepath.Join(dir, strings.Replace(timestr, ":", ".", -1))
-        if fd, err := os.Create(fname); err != nil {
-            return fmt.Errorf("Cannot create files in %s", dir)
+        fd, err := os.Create(fname)
+
+        mkerr := func(action string) error {
+            return fmt.Errorf("cannot %s a file in %s: %s", action, dir, err.Error())
         }
-        _ = fd.Close()
-        _ = os.Remove(fname)
+        if err != nil {
+            return mkerr("create")
+        }
+        if err = fd.Close(); err != nil {
+            return mkerr("close")
+        }
+        if err = os.Remove(fname); err != nil {
+            return mkerr("remove")
+        }
     }
     self.tomake = nil
     return nil
