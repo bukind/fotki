@@ -222,29 +222,44 @@ func (self *YearDays) FindMonth(date ImageDate, dstname string) (string, error) 
 }
 
 
+func makedir(dir string) (FileInfo, error) {
+    info, err := os.Lstat(dir)
+    if err == nil {
+        return info, err
+    } else if !info.IsDir() {
+        return info, fmt.Errorf("%s is not a dir", dir)
+    }
+    // get the parent dir
+    info2, err := makedir(filepath.Dir(dir))
+    if err != nil {
+        // could not create the root directory
+        return info2, err
+    }
+    if Verbose {
+        fmt.Println("# mkdir", dir)
+    }
+    if DryRun {
+        return info, nil
+    }
+    err = os.Mkdir(dir, info2.Mode())
+    if err != nil {
+        return info, err
+    }
+    return os.Lstat(dir)
+}
+
+
 func (self *YearDays) MakeAllDirs() error {
     for _, dir := range self.tomake {
-        // check if the dir is usable
-        info, err := os.Lstat(dir)
+        _, err := makedir(dir)
         if err != nil {
-            // failed to stat, try to create
-            if Verbose {
-                fmt.Println("# mkdir", dir)
-            }
-            if DryRun {
-                continue
-            }
-            if err = os.MkdirAll(dir, 0755); err != nil {
-                return err
-            }
-        } else if ! info.IsDir() {
-            return fmt.Errorf("The %s is not a dir", dir)
-        } else if Verbose {
-            fmt.Println("# check", dir)
-            if DryRun {
-                continue
-            }
+            return err
         }
+
+        if DryRun {
+            continue
+        }
+
         // directory exists, try to create a file
         timestr := time.Now().Format(time.RFC3339Nano)
         fname := filepath.Join(dir, strings.Replace(timestr, ":", ".", -1))
