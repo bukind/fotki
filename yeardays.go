@@ -210,7 +210,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
         self.tomake = append(self.tomake, dir.Path())
     }
     dir.Add(dstname)
-    return dir.Path(), nil
+    return dir.Path(dstname), nil
 }
 
 
