@@ -43,8 +43,4 @@ func main() {
     check(album.Scan(*scandir))
 
     check(album.Relocate())
-
-    if fotki.Verbose {
-        fmt.Println(album.String())
-    }
 }
