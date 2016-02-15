@@ -45,14 +45,27 @@ func NewYearDays(album *Album, year int) *YearDays {
 func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
     fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.basedir)
-    for k, v := range self.day2dir {
-        fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
+    dkeys := make([]ImageDate, 0, len(self.day2dir))
+    for k, _ := range self.day2dir {
+        dkeys = append(dkeys,k)
     }
-    for k, v := range self.daydirs {
-        fmt.Fprintf(buf, " %s: %s\n", k, v.String())
+    sort.Sort(dkeys)
+    for _, k := range dkeys {
+        fmt.Fprintf(buf, " %s: %s\n", k.String(), self.day2dir[k].String())
     }
-    for k, v := range self.mon2dir {
-        fmt.Fprintf(buf, " %02d: %s\n", k, v.String())
+    skeys := make([]string, 0, len(self.daydirs))
+    for k, _ := range self.daydirs {
+        skeys = append(skeys, k)
+    }
+    sort.Strings(skeys)
+    for _, k := range skeys {
+        fmt.Fprintf(buf, " %s: %s\n", k, self.daydirs[k].String())
+    }
+    for k := 1; k < 12; k++ {
+        if _, ok = self.mon2dir[k]; !ok {
+            continue
+        }
+        fmt.Fprintf(buf, " %02d: %s\n", k, self.mon2dir[k].String())
     }
     fmt.Fprintf(buf, " .garbage: %s\n", self.garbage.String())
     return buf.String()
@@ -132,8 +145,12 @@ func (self *YearDays) Scan() error {
     }
 
     // scanning individual day directories
-    for scanpath, dir := range self.daydirs {
+    for _, dir := range self.daydirs {
 
+        scanpath := dir.Path()
+        if Verbose {
+            fmt.Println("# scanning", scanpath)
+        }
         collectDayDirWalk := func (path string, info os.FileInfo, err error) error {
             if err != nil {
                 // failed - ignore
