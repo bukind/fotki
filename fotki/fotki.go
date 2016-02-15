@@ -43,4 +43,5 @@ func main() {
     check(album.Scan(*scandir))
 
     check(album.Relocate())
+    album.ShowFailed()
 }

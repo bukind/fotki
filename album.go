@@ -8,6 +8,7 @@ import (
     "os/exec"
     "path/filepath"
     "regexp"
+    "sort"
     "strconv"
     "strings"
     "sync"
@@ -67,7 +68,8 @@ func (self *Album) Scan(scandir string) error {
         switch ext {
             case ".jpg", ".png", ".jpeg":
                 imagelist = append(imagelist, Image{path,info})
-            // TODO: should we add something to garbage here
+            default:
+                self.failed[path] = Garbage
         }
         return nil
     }
@@ -237,6 +239,9 @@ func (self *Album) Relocate() error {
         if dstdir, err := year.FindMonth(info.date, dstname, info.info); err == nil {
             dstdirs = append(dstdirs, dstdir)
         } else if err == SameFile {
+            if Verbose {
+                fmt.Println("# same files %s and %s", image, filepath.Join(dstdir, dstname))
+            }
             errx = nil
         } else {
             errx = err
@@ -244,6 +249,9 @@ func (self *Album) Relocate() error {
         if dstdir, err := year.FindDay(info.date, dstname, info.info); err == nil {
             dstdirs = append(dstdirs, dstdir)
         } else if err == SameFile {
+            if Verbose {
+                fmt.Println("# same files %s and %s", image, filepath.Join(dstdir, dstname))
+            }
             errx = nil
         } else {
             errx = err
@@ -289,4 +297,20 @@ func (self *Album) MoveImage(src string, dst string) error {
         return nil
     }
     return os.Link(src, dst)
+}
+
+
+func (self *Album) ShowFailed() {
+    if len(self.failed) == 0 {
+        return
+    }
+    fails := make([]string, 0, len(self.failed))
+    for key, _ := range self.failed {
+        fails = append(fails, key)
+    }
+    sort.Strings(fails)
+    fmt.Printf("The following %d files were not processed\n", len(fails))
+    for _, key := range fails {
+        fmt.Println(key, ":", self.failed[key])
+    }
 }
