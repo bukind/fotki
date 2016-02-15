@@ -46,10 +46,11 @@ func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
     fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.basedir)
     dkeys := make([]ImageDate, 0, len(self.day2dir))
+
     for k, _ := range self.day2dir {
         dkeys = append(dkeys,k)
     }
-    sort.Sort(dkeys)
+    sort.Sort(ByImageDate(dkeys))
     for _, k := range dkeys {
         fmt.Fprintf(buf, " %s: %s\n", k.String(), self.day2dir[k].String())
     }
@@ -62,7 +63,7 @@ func (self *YearDays) String() string {
         fmt.Fprintf(buf, " %s: %s\n", k, self.daydirs[k].String())
     }
     for k := 1; k < 12; k++ {
-        if _, ok = self.mon2dir[k]; !ok {
+        if _, ok := self.mon2dir[k]; !ok {
             continue
         }
         fmt.Fprintf(buf, " %02d: %s\n", k, self.mon2dir[k].String())

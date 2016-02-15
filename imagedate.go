@@ -29,3 +29,14 @@ func (self ImageDate) MonthString() string {
 func (self ImageDate) YearString() string {
     return fmt.Sprintf("%04d", self.year)
 }
+
+func (self ImageDate) Less(o ImageDate) bool {
+    return self.year < o.year || (self.year == o.year &&
+                                  (self.month < o.month ||
+                                   (self.month == o.month && self.day < o.day)))
+}
+
+type ByImageDate []ImageDate
+func (d ByImageDate) Len() int { return len(d) }
+func (d ByImageDate) Swap(i, j int) { d[i], d[j] = d[j], d[i]}
+func (d ByImageDate) Less(i, j int) bool { return d[i].Less(d[j]) }
