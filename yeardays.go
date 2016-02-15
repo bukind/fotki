@@ -115,15 +115,14 @@ func (self *YearDays) Scan() error {
                 self.daydirs[info.Name()] = NewDirectory(path)
                 strset := self.day2dir[date]
                 strset.Add(info.Name())
-                // TODO: start subwalk
             } else {
                 // invalid subdirectory!
-                // TODO: add it to the garbage
-                self.garbage.Add(info.Name())
+                self.garbage.Add(path)
             }
             return filepath.SkipDir
         } else {
-            // TODO: not a dir at the first level, add to the garbage
+            // not a dir at the first level, add to the garbage
+            self.garbage.Add(path)
         }
         return nil
     }
@@ -131,6 +130,35 @@ func (self *YearDays) Scan() error {
     if err := filepath.Walk(dayscandir, collectPerDayWalk); err != nil {
         return err
     }
+
+    // scanning individual day directories
+    for scanpath, dir := range self.daydirs {
+
+        collectDayDirWalk := func (path string, info os.FileInfo, err error) error {
+            if err != nil {
+                // failed - ignore
+                return nil
+            }
+            if info.Mode().IsDir() {
+                if path == scanpath {
+                    // the scanpath itself - ignore
+                    return nil
+                }
+                // else garbage
+                self.garbage.Add(path)
+                return filepath.SkipDir
+            } else {
+                // not a dir
+                dir.Add(info.Name())
+            }
+            return nil
+        }
+
+        if err := filepath.Walk(scanpath, collectDayDirWalk); err != nil {
+            return err
+        }
+    }
+
 
     // scanning month dirs
     for mon := 1; mon <= 12; mon++ {
