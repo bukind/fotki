@@ -42,20 +42,17 @@ func NewYearDays(album *Album, year int) *YearDays {
 }
 
 
-/*
-func (self *YearDays) makePath(elts ...string) string {
-    s := []string{self.basedir}
-    s = append(s, elts...)
-    return filepath.Join(s...)
-}
- */
-
-
 func (self *YearDays) String() string {
     buf := new(bytes.Buffer)
     fmt.Fprintf(buf, "year:%d => %s\n", self.year, self.basedir)
     for k, v := range self.day2dir {
         fmt.Fprintf(buf, " %s: %s\n", k.String(), v.String())
+    }
+    for k, v := range self.daydirs {
+        fmt.Fprintf(buf, " %s: %s\n", k, v.String())
+    }
+    for k, v := range self.mon2dir {
+        fmt.Fprintf(buf, " %02d: %s\n", k, v.String())
     }
     fmt.Fprintf(buf, " .garbage: %s\n", self.garbage.String())
     return buf.String()
@@ -169,6 +166,9 @@ func (self *YearDays) Scan() error {
         }
     }
 
+    if Verbose {
+        fmt.Println("# Scanned", self.String())
+    }
     return nil
 }
 
