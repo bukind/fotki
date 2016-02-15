@@ -270,7 +270,7 @@ func (self *Album) Relocate() error {
         }
 
         for _, dst := range dstdirs {
-            if err := self.MoveImage(image, dst); err != nil {
+            if err := self.LinkImage(image, dst); err != nil {
                 errx = err
             }
         }
@@ -289,7 +289,7 @@ func (self *Album) Relocate() error {
 }
 
 
-func (self *Album) MoveImage(src string, dst string) error {
+func (self *Album) LinkImage(src string, dst string) error {
     if Verbose {
         fmt.Println("# linking", src, "from", dst)
     }

@@ -180,10 +180,19 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
     if dirset, ok = self.day2dir[date]; ok {
         // a dirset is found, check the contents
         var found string
+        if Verbose {
+            fmt.Printf("# dirset is %s\n", dirset.String())
+        }
         for _, dirname := range dirset.Keys() {
             found = dirname
             dir := self.daydirs[dirname]
+            if Verbose {
+                fmt.Printf("# checking %s\n", dir.Path())
+            }
             if dir.Has(dstname) {
+                if Verbose {
+                    fmt.Println("# file is found in day", dir.Path(dstname))
+                }
                 return self.compareInfo(dir.Path(dstname), srcinfo)
             }
         }
@@ -192,6 +201,9 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
             // only one subdir
             dir := self.daydirs[found]
             dir.Add(dstname)  // update the output
+            if Verbose {
+                fmt.Printf("# file %s is not found in a single daydir %s\n", dstname, dir.Path(dstname))
+            }
             return dir.Path(dstname), nil
         }
     } else {
@@ -210,6 +222,9 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
         self.tomake = append(self.tomake, dir.Path())
     }
     dir.Add(dstname)
+    if Verbose {
+        fmt.Printf("# dayset has no file: %v\n", dirset)
+    }
     return dir.Path(dstname), nil
 }
 
