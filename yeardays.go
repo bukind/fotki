@@ -234,7 +234,7 @@ func (self *YearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, erro
         return "", fmt.Errorf("cannot stat %s: %s", dst, err.Error())
     }
     if os.SameFile(dstinfo, srcinfo) {
-        return "", SameFile
+        return dst, SameFile
     }
     return "", fmt.Errorf("file exists %s", dst)
 }

@@ -240,7 +240,7 @@ func (self *Album) Relocate() error {
             dstdirs = append(dstdirs, dstdir)
         } else if err == SameFile {
             if Verbose {
-                fmt.Println("# same files %s and %s", image, filepath.Join(dstdir, dstname))
+                fmt.Printf("# same files %s and %s\n", image, dstdir)
             }
             errx = nil
         } else {
@@ -250,7 +250,7 @@ func (self *Album) Relocate() error {
             dstdirs = append(dstdirs, dstdir)
         } else if err == SameFile {
             if Verbose {
-                fmt.Println("# same files %s and %s", image, filepath.Join(dstdir, dstname))
+                fmt.Printf("# same files %s and %s\n", image, dstdir)
             }
             errx = nil
         } else {
