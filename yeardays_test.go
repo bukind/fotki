@@ -20,9 +20,9 @@ func TestMakedir(t *testing.T) {
 	fmt.Println("making a directory", dir)
 	info, err := makedir(dir)
 	if err != nil {
-		t.Fatal("cannot create %s: %s", dir, err.Error())
+		t.Fatalf("cannot create %s: %s\n", dir, err.Error())
 	}
 	if !info.IsDir() || info.Name() != "world" {
-		t.Fatal("wrong parameters of the directory, %v", info)
+		t.Fatalf("wrong parameters of the directory, %v\n", info)
 	}
 }
