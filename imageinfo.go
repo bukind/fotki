@@ -4,14 +4,12 @@ import (
 	"os"
 )
 
-
 type ImageInfo struct {
-    date ImageDate
+	date ImageDate
 	kind ImageKind
 	info os.FileInfo
 }
 
-
 func (self ImageInfo) String() string {
-    return self.date.String()
+	return self.date.String()
 }

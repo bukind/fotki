@@ -1,277 +1,269 @@
 package fotki
 
 import (
-    "bufio"
-    "bytes"
-    "fmt"
-    "os"
-    "os/exec"
-    "path/filepath"
-    "regexp"
-    "sort"
-    "strconv"
-    "strings"
-    "sync"
-    "time"
+	"bufio"
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 var minstamp time.Time
 var maxstamp time.Time
 
-
 func init() {
-    minstamp = time.Unix(1262264400, 0)  // 2010-01-01
-    maxstamp = time.Unix(1483189200, 0)  // 2017-01-01
+	minstamp = time.Unix(1262264400, 0) // 2010-01-01
+	maxstamp = time.Unix(1483189200, 0) // 2017-01-01
 }
-
 
 type Album struct {
-    root string
-    images map[string]ImageInfo // good image -> their infos
-    failed map[string]error     // failed image -> error
-    years  map[int]*YearDays    // year -> contents
+	root   string
+	images map[string]ImageInfo // good image -> their infos
+	failed map[string]error     // failed image -> error
+	years  map[int]*YearDays    // year -> contents
 }
-
 
 func NewAlbum(rootdir string) *Album {
-    self := new(Album)
-    self.root = rootdir
-    self.images = make(map[string]ImageInfo)
-    self.failed = make(map[string]error)
-    self.years  = make(map[int]*YearDays)
-    return self
+	self := new(Album)
+	self.root = rootdir
+	self.images = make(map[string]ImageInfo)
+	self.failed = make(map[string]error)
+	self.years = make(map[int]*YearDays)
+	return self
 }
-
 
 func (self *Album) String() string {
-    buf := new(bytes.Buffer)
-    fmt.Fprintf(buf, "root=%s\n", self.root)
-    for img, info := range self.images {
-        fmt.Fprintf(buf, " %s => %s\n", img, info.String())
-    }
-    for img, err := range self.failed {
-        fmt.Fprintf(buf, " %s => Error %s\n", img, err.Error())
-    }
-    for _, data := range self.years {
-        fmt.Fprintln(buf, data.String())
-    }
-    return buf.String()
+	buf := new(bytes.Buffer)
+	fmt.Fprintf(buf, "root=%s\n", self.root)
+	for img, info := range self.images {
+		fmt.Fprintf(buf, " %s => %s\n", img, info.String())
+	}
+	for img, err := range self.failed {
+		fmt.Fprintf(buf, " %s => Error %s\n", img, err.Error())
+	}
+	for _, data := range self.years {
+		fmt.Fprintln(buf, data.String())
+	}
+	return buf.String()
 }
-
 
 func (self *Album) Scan(scandir string) error {
 
-    istty := IsTTY(os.Stdout)
+	istty := IsTTY(os.Stdout)
 
-    var imagelist []*ImageLoc
-    walkFun := func (path string, info os.FileInfo, err error) error {
-        if err != nil {
-            self.failed[path] = err
-            return nil
-        }
-        if !info.Mode().IsRegular() {
-            // we are only interested in the regular files
-            return nil
-        }
-        kind := GetImageKind(info.Name())
-        switch kind {
-            case NoImage:
-                self.failed[path] = Garbage
-            default:
-                imagelist = append(imagelist, &ImageLoc{path, info, kind})
-        }
-        return nil
-    }
+	var imagelist []*ImageLoc
+	walkFun := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			self.failed[path] = err
+			return nil
+		}
+		if !info.Mode().IsRegular() {
+			// we are only interested in the regular files
+			return nil
+		}
+		kind := GetImageKind(info.Name())
+		switch kind {
+		case NoImage:
+			self.failed[path] = Garbage
+		default:
+			imagelist = append(imagelist, &ImageLoc{path, info, kind})
+		}
+		return nil
+	}
 
-    if err := filepath.Walk(scandir, walkFun); err != nil {
-        return err
-    }
+	if err := filepath.Walk(scandir, walkFun); err != nil {
+		return err
+	}
 
-    type Result struct {
-        path string
-        info ImageInfo
-        err  error
-    }
+	type Result struct {
+		path string
+		info ImageInfo
+		err  error
+	}
 
-    done := make(chan int) // is not used for now
-    feed := make(chan *ImageLoc)
-    resc := make(chan Result)
+	done := make(chan int) // is not used for now
+	feed := make(chan *ImageLoc)
+	resc := make(chan Result)
 
-    const ScannerCount = 8
-    var wg sync.WaitGroup
-    for i := 0; i < ScannerCount; i++ {
+	const ScannerCount = 8
+	var wg sync.WaitGroup
+	for i := 0; i < ScannerCount; i++ {
 
-        // create a scanning goroutine
-        wg.Add(1)
-        go func(done <-chan int, feed <-chan *ImageLoc, out chan<-Result) {
-            defer wg.Done()
-            for image := range feed {
-                info, err := image.ExtractDate()
-                select {
-                case <-done:
-                    // cancelled
-                    return
-                case resc <- Result{image.path, info, err}:
-                    // continue
-                }
-            }
-        }(done, feed, resc)
+		// create a scanning goroutine
+		wg.Add(1)
+		go func(done <-chan int, feed <-chan *ImageLoc, out chan<- Result) {
+			defer wg.Done()
+			for image := range feed {
+				info, err := image.ExtractDate()
+				select {
+				case <-done:
+					// cancelled
+					return
+				case resc <- Result{image.path, info, err}:
+					// continue
+				}
+			}
+		}(done, feed, resc)
 
-    }
+	}
 
-    // start a consumer goroutine
-    wg.Add(1)
-    go func(done <-chan int, resc <-chan Result, total int) {
-        defer wg.Done()
-        for count := 0; count < total; count++ {
-            select {
-            case <-done:
-                break
-            case res := <-resc:
-                if istty {
-                    fmt.Printf("\rScanned %d/%d", count+1, total)
-                } else {
-                    if (count+1) % 50 == 0 {
-                        fmt.Printf("Scanned %d/%d\n", count+1, total)
-                    }
-                }
-                if res.err == nil {
-                    self.images[res.path] = res.info
-                } else {
-                    self.failed[res.path] = res.err
-                }
-            }
-        }
-        fmt.Printf("\n")
-    }(done, resc, len(imagelist))
+	// start a consumer goroutine
+	wg.Add(1)
+	go func(done <-chan int, resc <-chan Result, total int) {
+		defer wg.Done()
+		for count := 0; count < total; count++ {
+			select {
+			case <-done:
+				break
+			case res := <-resc:
+				if istty {
+					fmt.Printf("\rScanned %d/%d", count+1, total)
+				} else {
+					if (count+1)%50 == 0 {
+						fmt.Printf("Scanned %d/%d\n", count+1, total)
+					}
+				}
+				if res.err == nil {
+					self.images[res.path] = res.info
+				} else {
+					self.failed[res.path] = res.err
+				}
+			}
+		}
+		fmt.Printf("\n")
+	}(done, resc, len(imagelist))
 
-    // send paths to the scanners
-    for _, image := range imagelist {
-        feed <- image
-    }
-    close(feed)
-    wg.Wait()
-    close(resc)
-    close(done)
+	// send paths to the scanners
+	for _, image := range imagelist {
+		feed <- image
+	}
+	close(feed)
+	wg.Wait()
+	close(resc)
+	close(done)
 
-    // load years
-    yearmap := make(map[int]bool)
-    for _, info := range self.images {
-        yearmap[info.date.year] = true
-    }
-    for year, _ := range yearmap {
-        if _, ok := self.years[year]; !ok {
-            ydir := NewYearDays(self, year)
-            self.years[year] = ydir
-            if err := ydir.Scan(); err != nil {
-                return err
-            }
-        }
-    }
+	// load years
+	yearmap := make(map[int]bool)
+	for _, info := range self.images {
+		yearmap[info.date.year] = true
+	}
+	for year, _ := range yearmap {
+		if _, ok := self.years[year]; !ok {
+			ydir := NewYearDays(self, year)
+			self.years[year] = ydir
+			if err := ydir.Scan(); err != nil {
+				return err
+			}
+		}
+	}
 
-    return nil
+	return nil
 }
-
 
 // relocate found images
 func (self *Album) Relocate() error {
-    for image, info := range self.images {
-        // The image must be normalized to have only lowercase letters.
-        // There must be two destination, per-day and per-month.
-        // The per-day destination may have optional suffix:
-        // YEARDIR/all/YYYY-MM/pic.jpg
-        // YEARDIR/YYYY-MM-DD[-suffix]/pic.jpg
+	for image, info := range self.images {
+		// The image must be normalized to have only lowercase letters.
+		// There must be two destination, per-day and per-month.
+		// The per-day destination may have optional suffix:
+		// YEARDIR/all/YYYY-MM/pic.jpg
+		// YEARDIR/YYYY-MM-DD[-suffix]/pic.jpg
 
-        srcdir, srcname := filepath.Split(image)
-        dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
+		srcdir, srcname := filepath.Split(image)
+		dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
 
-        if Verbose {
-            fmt.Println("# processing", srcdir, srcname, info.date, "->", dstname)
-        }
+		if Verbose {
+			fmt.Println("# processing", srcdir, srcname, info.date, "->", dstname)
+		}
 
-        dstdirs := make([]string,0)
+		dstdirs := make([]string, 0)
 
-        year := self.years[info.date.year]
-        if year == nil {
-            fmt.Fprintf(os.Stderr, "year %d is not setup\n", info.date.year)
-            os.Exit(1)
-        }
-        var errx error
-        if dstdir, err := year.FindMonth(info.date, dstname, info.info); err == nil {
-            dstdirs = append(dstdirs, dstdir)
-        } else if err == SameFile {
-            if Verbose {
-                fmt.Printf("# same files %s and %s\n", image, dstdir)
-            }
-            errx = nil
-        } else {
-            errx = err
-        }
-        if dstdir, err := year.FindDay(info.date, dstname, info.info); err == nil {
-            dstdirs = append(dstdirs, dstdir)
-        } else if err == SameFile {
-            if Verbose {
-                fmt.Printf("# same files %s and %s\n", image, dstdir)
-            }
-            errx = nil
-        } else {
-            errx = err
-        }
-        if len(dstdirs) == 0 {
-            // both are failed
-            if errx != nil {
-                self.failed[image] = errx
-            }
-            continue
-        }
+		year := self.years[info.date.year]
+		if year == nil {
+			fmt.Fprintf(os.Stderr, "year %d is not setup\n", info.date.year)
+			os.Exit(1)
+		}
+		var errx error
+		if dstdir, err := year.FindMonth(info.date, dstname, info.info); err == nil {
+			dstdirs = append(dstdirs, dstdir)
+		} else if err == SameFile {
+			if Verbose {
+				fmt.Printf("# same files %s and %s\n", image, dstdir)
+			}
+			errx = nil
+		} else {
+			errx = err
+		}
+		if dstdir, err := year.FindDay(info.date, dstname, info.info); err == nil {
+			dstdirs = append(dstdirs, dstdir)
+		} else if err == SameFile {
+			if Verbose {
+				fmt.Printf("# same files %s and %s\n", image, dstdir)
+			}
+			errx = nil
+		} else {
+			errx = err
+		}
+		if len(dstdirs) == 0 {
+			// both are failed
+			if errx != nil {
+				self.failed[image] = errx
+			}
+			continue
+		}
 
-        if err := year.MakeAllDirs(); err != nil {
-            // failed to create dir
-            return err
-        }
+		if err := year.MakeAllDirs(); err != nil {
+			// failed to create dir
+			return err
+		}
 
-        for _, dst := range dstdirs {
-            if err := self.LinkImage(image, dst); err != nil {
-                errx = err
-            }
-        }
-        if errx != nil {
-            self.failed[image] = errx
-        }
-    }
+		for _, dst := range dstdirs {
+			if err := self.LinkImage(image, dst); err != nil {
+				errx = err
+			}
+		}
+		if errx != nil {
+			self.failed[image] = errx
+		}
+	}
 
-    // normalize years
-    for _, year := range self.years {
-        if err := year.NormalizeDirs(); err != nil {
-            return err
-        }
-    }
-    return nil
+	// normalize years
+	for _, year := range self.years {
+		if err := year.NormalizeDirs(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-
 
 func (self *Album) LinkImage(src string, dst string) error {
-    if Verbose {
-        fmt.Println("# linking", src, "from", dst)
-    }
-    if DryRun {
-        return nil
-    }
-    return os.Link(src, dst)
+	if Verbose {
+		fmt.Println("# linking", src, "from", dst)
+	}
+	if DryRun {
+		return nil
+	}
+	return os.Link(src, dst)
 }
 
-
 func (self *Album) ShowFailed() {
-    if len(self.failed) == 0 {
-        return
-    }
-    fails := make([]string, 0, len(self.failed))
-    for key, _ := range self.failed {
-        fails = append(fails, key)
-    }
-    sort.Strings(fails)
-    fmt.Fprintf(os.Stderr, "The following %d files were not processed\n", len(fails))
-    for _, key := range fails {
-        fmt.Fprintln(os.Stderr, "FAIL", key, ":", self.failed[key])
-    }
+	if len(self.failed) == 0 {
+		return
+	}
+	fails := make([]string, 0, len(self.failed))
+	for key, _ := range self.failed {
+		fails = append(fails, key)
+	}
+	sort.Strings(fails)
+	fmt.Fprintf(os.Stderr, "The following %d files were not processed\n", len(fails))
+	for _, key := range fails {
+		fmt.Fprintln(os.Stderr, "FAIL", key, ":", self.failed[key])
+	}
 }
