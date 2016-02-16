@@ -63,12 +63,7 @@ func (self *Album) Scan(scandir string) error {
 
     istty := IsTTY(os.Stdout)
 
-    type Image struct {
-        path string
-        info os.FileInfo
-        kind ImageKind
-    }
-    var imagelist []Image
+    var imagelist []*ImageLoc
     walkFun := func (path string, info os.FileInfo, err error) error {
         if err != nil {
             self.failed[path] = err
@@ -78,12 +73,12 @@ func (self *Album) Scan(scandir string) error {
             // we are only interested in the regular files
             return nil
         }
-        filetype := GetImageKind(info.Name())
-        switch filetype {
+        kind := GetImageKind(info.Name())
+        switch kind {
             case NoImage:
                 self.failed[path] = Garbage
             default:
-                imagelist = append(imagelist, Image{path, info, filetype})
+                imagelist = append(imagelist, &ImageLoc{path, info, kind})
         }
         return nil
     }
@@ -99,7 +94,7 @@ func (self *Album) Scan(scandir string) error {
     }
 
     done := make(chan int) // is not used for now
-    feed := make(chan Image)
+    feed := make(chan *ImageLoc)
     resc := make(chan Result)
 
     const ScannerCount = 8
@@ -108,18 +103,15 @@ func (self *Album) Scan(scandir string) error {
 
         // create a scanning goroutine
         wg.Add(1)
-        go func(done <-chan int, feed <-chan Image, out chan<-Result) {
+        go func(done <-chan int, feed <-chan *ImageLoc, out chan<-Result) {
             defer wg.Done()
             for image := range feed {
-                date, err := self.ExtractImageDate(image.path)
+                info, err := image.ExtractDate()
                 select {
                 case <-done:
                     // cancelled
                     return
-                case resc <- Result{image.path,
-                                    ImageInfo{date,
-                                              image.kind,
-                                              image.info}, err}:
+                case resc <- Result{image.path, info, err}:
                     // continue
                 }
             }
@@ -178,71 +170,6 @@ func (self *Album) Scan(scandir string) error {
     }
 
     return nil
-}
-
-
-func (self *Album) ExtractImageDate(path string) (ImageDate, error) {
-    out, err := exec.Command("identify", "-ping", "-verbose", path).Output()
-    ret := ImageDate{}
-    if err == nil {
-        // try to extract the date from the path itself
-        reg := regexp.MustCompile(`(20[0123]\d)[-_]?(0[1-9]|1[012])[-_]?(0[1-9]|[123]\d)[^/]*$`)
-        // tag := "file"
-        groups := reg.FindStringSubmatch(path)
-        if groups != nil {
-            var year, month, day int
-            year, err = strconv.Atoi(groups[1])
-            if err == nil {
-                month, err = strconv.Atoi(groups[2])
-                if err == nil {
-                    day, err = strconv.Atoi(groups[3])
-                }
-            }
-            if err == nil {
-                ret.year = year
-                ret.month = month
-                ret.day = day
-                // fmt.Printf("%s: %s\n", tag, ret)
-            }
-        }
-        var value string
-        scanner := bufio.NewScanner(bytes.NewBuffer(out))
-        for scanner.Scan() {
-            str := scanner.Text()
-            switch {
-                // disable modification time for now
-                // case strings.HasPrefix(str, "    date:modify: "):
-                // tag = "date"
-                // value = strings.SplitN(str, ": ", 2)[1]
-                case strings.HasPrefix(str, "    exif:DateTimeOriginal: "):
-                    // tag = "exif"
-                    value = strings.SplitN(str, ": ", 2)[1]
-                default:
-                    continue
-            }
-            var dummy int
-            fmt.Sscanf(value, "%04d%c%02d%c%02d", &ret.year, &dummy, &ret.month, &dummy, &ret.day)
-            // fmt.Printf("%s: %s\n", tag, ret)
-        }
-        err = scanner.Err()
-    }
-    if ret.IsEmpty() {
-        // try to convert the path to a timestamp
-        err = fmt.Errorf("cannot detect the date")
-        fp := filepath.Base(path)
-        fp = fp[:len(fp)-len(filepath.Ext(fp))]
-        if stamp, err2 := strconv.ParseInt(fp, 10, 64); err2 == nil {
-            const nms = 1000
-            ts := time.Unix(stamp / nms, stamp % nms)
-            if ts.After(minstamp) && ts.Before(maxstamp) {
-                ret.year = ts.Year()
-                ret.month = int(ts.Month())
-                ret.day = ts.Day()
-                err = nil
-            }
-        }
-    }
-    return ret, err
 }
 
 

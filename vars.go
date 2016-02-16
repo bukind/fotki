@@ -13,6 +13,15 @@ var SameFile = errors.New("the same file found")
 var Garbage = errors.New("not an image")
 
 
+type ImageKind int
+
+const (
+    NoImage ImageKind = iota
+    IsImage
+    IsMovie
+)
+
+
 /// detect if the output is a tty, default is not
 func IsTTY(fd *os.File) bool {
     if info, err := fd.Stat(); err != nil {
