@@ -58,12 +58,12 @@ func (self *Album) Scan(scandir string) error {
     }
     var imagelist []Image
     walkFun := func (path string, info os.FileInfo, err error) error {
-        if !info.Mode().IsRegular() {
-            // we are only interested in the regular files
-            return nil
-        }
         if err != nil {
             self.failed[path] = err
+            return nil
+        }
+        if !info.Mode().IsRegular() {
+            // we are only interested in the regular files
             return nil
         }
         ext := strings.ToLower(filepath.Ext(info.Name()))
