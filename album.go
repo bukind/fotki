@@ -50,6 +50,8 @@ func (self *Album) String() string {
 
 func (self *Album) Scan(scandir string) error {
 
+    istty := IsTTY(os.Stdout)
+
     type Image struct {
         path string
         info os.FileInfo
@@ -110,7 +112,6 @@ func (self *Album) Scan(scandir string) error {
 
     }
 
-
     // start a consumer goroutine
     wg.Add(1)
     go func(done <-chan int, resc <-chan Result, total int) {
@@ -118,10 +119,14 @@ func (self *Album) Scan(scandir string) error {
         for count := 0; count < total; count++ {
             select {
             case <-done:
-                return
+                break
             case res := <-resc:
-                if Verbose {
-                    fmt.Printf("# scanned %d/%d %s\n", count+1, total, res.path)
+                if istty {
+                    fmt.Printf("\rScanned %d/%d", count+1, total)
+                } else {
+                    if (count+1) % 50 == 0 {
+                        fmt.Printf("Scanned %d/%d\n", count+1, total)
+                    }
                 }
                 if res.err == nil {
                     self.images[res.path] = res.info
@@ -130,6 +135,7 @@ func (self *Album) Scan(scandir string) error {
                 }
             }
         }
+        fmt.Printf("\n")
     }(done, resc, len(imagelist))
 
     // send paths to the scanners
@@ -309,8 +315,8 @@ func (self *Album) ShowFailed() {
         fails = append(fails, key)
     }
     sort.Strings(fails)
-    fmt.Printf("The following %d files were not processed\n", len(fails))
+    fmt.Fprintf(os.Stderr, "The following %d files were not processed\n", len(fails))
     for _, key := range fails {
-        fmt.Println(key, ":", self.failed[key])
+        fmt.Fprintln(os.Stderr, "FAIL", key, ":", self.failed[key])
     }
 }
