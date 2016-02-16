@@ -1,3 +1,4 @@
+// A test of parallel producers and a single consumer
 package main
 
 import (
