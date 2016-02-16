@@ -12,7 +12,18 @@ import (
     "strconv"
     "strings"
     "sync"
+    "time"
 )
+
+var minstamp time.Time
+var maxstamp time.Time
+
+
+func init() {
+    minstamp = time.Unix(1262264400, 0)  // 2010-01-01
+    maxstamp = time.Unix(1483189200, 0)  // 2017-01-01
+}
+
 
 type Album struct {
     root string
@@ -212,7 +223,20 @@ func (self *Album) ExtractImageDate(path string) (ImageDate, error) {
         err = scanner.Err()
     }
     if ret.IsEmpty() {
+        // try to convert the path to a timestamp
         err = fmt.Errorf("cannot detect the date")
+        fp := filepath.Base(path)
+        fp = fp[:len(fp)-len(filepath.Ext(fp))]
+        if stamp, err2 := strconv.ParseInt(fp, 10, 64); err2 == nil {
+            const nms = 1000
+            ts := time.Unix(stamp / nms, stamp % nms)
+            if ts.After(minstamp) && ts.Before(maxstamp) {
+                ret.year = ts.Year()
+                ret.month = int(ts.Month())
+                ret.day = ts.Day()
+                err = nil
+            }
+        }
     }
     return ret, err
 }
