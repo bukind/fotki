@@ -66,6 +66,7 @@ func (self *Album) Scan(scandir string) error {
     type Image struct {
         path string
         info os.FileInfo
+        kind ImageKind
     }
     var imagelist []Image
     walkFun := func (path string, info os.FileInfo, err error) error {
@@ -77,12 +78,12 @@ func (self *Album) Scan(scandir string) error {
             // we are only interested in the regular files
             return nil
         }
-        ext := strings.ToLower(filepath.Ext(info.Name()))
-        switch ext {
-            case ".jpg", ".png", ".jpeg":
-                imagelist = append(imagelist, Image{path,info})
-            default:
+        filetype := GetImageKind(info.Name())
+        switch filetype {
+            case NoImage:
                 self.failed[path] = Garbage
+            default:
+                imagelist = append(imagelist, Image{path, info, filetype})
         }
         return nil
     }
@@ -115,7 +116,10 @@ func (self *Album) Scan(scandir string) error {
                 case <-done:
                     // cancelled
                     return
-                case resc <- Result{image.path, ImageInfo{date, image.info}, err}:
+                case resc <- Result{image.path,
+                                    ImageInfo{date,
+                                              image.kind,
+                                              image.info}, err}:
                     // continue
                 }
             }
