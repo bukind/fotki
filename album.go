@@ -166,6 +166,15 @@ func (self *Album) Scan(scandir string) error {
 // relocate found images
 func (self *Album) Relocate() error {
 	for image, info := range self.images {
+
+		year := self.years[info.date.year]
+		if year == nil {
+			fmt.Fprintf(os.Stderr, "year %d is not setup\n", info.date.year)
+			os.Exit(1)
+		}
+
+		// TODO: year.Relocate(image, info)
+
 		// The image must be normalized to have only lowercase letters.
 		// There must be two destination, per-day and per-month.
 		// The per-day destination may have optional suffix:
@@ -181,11 +190,6 @@ func (self *Album) Relocate() error {
 
 		dstdirs := make([]string, 0)
 
-		year := self.years[info.date.year]
-		if year == nil {
-			fmt.Fprintf(os.Stderr, "year %d is not setup\n", info.date.year)
-			os.Exit(1)
-		}
 		var errx error
 		if dstdir, err := year.FindMonth(info.date, dstname, info.info); err == nil {
 			dstdirs = append(dstdirs, dstdir)
