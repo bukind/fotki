@@ -1,6 +1,7 @@
 package fotki
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -12,5 +13,5 @@ type ImageInfo struct {
 }
 
 func (self *ImageInfo) String() string {
-	return self.date.String()
+	return fmt.Sprintf("%s %s", self.path, self.date.String())
 }

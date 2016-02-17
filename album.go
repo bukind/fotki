@@ -20,15 +20,15 @@ func init() {
 
 type Album struct {
 	root   string
-	images map[string]*ImageInfo // good image -> their infos
-	failed map[string]error     // failed image -> error
-	years  map[int]*YearDays    // year -> contents
+	images []*ImageInfo       // good image -> their infos
+	failed map[string]error   // failed image -> error
+	years  map[int]*YearDays  // year -> contents
 }
 
 func NewAlbum(rootdir string) *Album {
 	self := new(Album)
 	self.root = rootdir
-	self.images = make(map[string]*ImageInfo)
+	// self.images = make([]*ImageInfo,0)
 	self.failed = make(map[string]error)
 	self.years = make(map[int]*YearDays)
 	return self
@@ -37,8 +37,8 @@ func NewAlbum(rootdir string) *Album {
 func (self *Album) String() string {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "root=%s\n", self.root)
-	for img, info := range self.images {
-		fmt.Fprintf(buf, " %s => %s\n", img, info.String())
+	for _, info := range self.images {
+		fmt.Fprintf(buf, "%s\n", info.String())
 	}
 	for img, err := range self.failed {
 		fmt.Fprintf(buf, " %s => Error %s\n", img, err.Error())
@@ -125,7 +125,7 @@ func (self *Album) Scan(scandir string) error {
 					}
 				}
 				if res.err == nil {
-					self.images[res.info.path] = res.info
+					self.images = append(self.images, res.info)
 				} else {
 					self.failed[res.info.path] = res.err
 				}
