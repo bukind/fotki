@@ -79,7 +79,6 @@ func (self *Album) Scan(scandir string) error {
 	}
 
 	type Result struct {
-		path string
 		info ImageInfo
 		err  error
 	}
@@ -102,7 +101,7 @@ func (self *Album) Scan(scandir string) error {
 				case <-done:
 					// cancelled
 					return
-				case resc <- Result{image.path, info, err}:
+				case resc <- Result{info, err}:
 					// continue
 				}
 			}
@@ -127,9 +126,9 @@ func (self *Album) Scan(scandir string) error {
 					}
 				}
 				if res.err == nil {
-					self.images[res.path] = res.info
+					self.images[res.info.path] = res.info
 				} else {
-					self.failed[res.path] = res.err
+					self.failed[res.info.path] = res.err
 				}
 			}
 		}

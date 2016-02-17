@@ -5,6 +5,7 @@ import (
 )
 
 type ImageInfo struct {
+	path string
 	date ImageDate
 	kind ImageKind
 	info os.FileInfo
