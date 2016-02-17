@@ -11,6 +11,6 @@ type ImageInfo struct {
 	info os.FileInfo
 }
 
-func (self ImageInfo) String() string {
+func (self *ImageInfo) String() string {
 	return self.date.String()
 }

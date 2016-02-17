@@ -32,9 +32,9 @@ func GetImageKind(path string) ImageKind {
 	}
 }
 
-func (self *ImageLoc) ExtractDate() (ImageInfo, error) {
+func (self *ImageLoc) ExtractDate() (*ImageInfo, error) {
 	// try to extract the date from the path itself
-	ret := ImageInfo{self.path, ImageDate{}, self.kind, self.info}
+	ret := &ImageInfo{self.path, ImageDate{}, self.kind, self.info}
 	reg := regexp.MustCompile(`(20[0123]\d)[-_]?(0[1-9]|1[012])[-_]?(0[1-9]|[123]\d)[^/]*$`)
 	groups := reg.FindStringSubmatch(self.path)
 	if groups != nil {

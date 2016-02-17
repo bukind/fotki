@@ -212,10 +212,10 @@ func (self *YearDays) Scan() error {
 }
 
 /// find a suitable location to place an image, or return error
-func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInfo) (string, error) {
+func (self *YearDays) FindDay(info *ImageInfo, dstname string) (string, error) {
 	var dirset *StrSet
 	var ok bool
-	if dirset, ok = self.day2dir[date]; ok {
+	if dirset, ok = self.day2dir[info.date]; ok {
 		// a dirset is found, check the contents
 		var found string
 		if Verbose {
@@ -231,7 +231,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
 				if Verbose {
 					fmt.Println("# file is found in day", dir.Path(dstname))
 				}
-				return self.compareInfo(dir.Path(dstname), srcinfo)
+				return self.compareInfo(dir.Path(dstname), info.info)
 			}
 		}
 		// file is not found in subdirs
@@ -247,10 +247,10 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
 	} else {
 		// no dirset exists
 		dirset = NewStrSet()
-		self.day2dir[date] = dirset
+		self.day2dir[info.date] = dirset
 	}
 
-	dirname := date.String()
+	dirname := info.date.String()
 	dirset.Add(dirname)
 	dir := self.daydirs[dirname]
 	if dir == nil {
@@ -266,10 +266,10 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
 	return dir.Path(dstname), nil
 }
 
-func (self *YearDays) FindMonth(date ImageDate, dstname string, srcinfo os.FileInfo) (string, error) {
-	dir, justmade := self.get_mondir(date.month)
+func (self *YearDays) FindMonth(info *ImageInfo, dstname string) (string, error) {
+	dir, justmade := self.get_mondir(info.date.month)
 	if dir.Has(dstname) {
-		return self.compareInfo(dir.Path(dstname), srcinfo)
+		return self.compareInfo(dir.Path(dstname), info.info)
 	}
 	dir.Add(dstname)
 	if justmade {
@@ -375,4 +375,34 @@ func (self *YearDays) NormalizeDirs() error {
 		}
 	}
 	return nil
+}
+
+
+func (self *YearDays) Relocate(info *ImageInfo) ([]string, error) {
+
+	srcdir, srcname := filepath.Split(info.path)
+	dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
+
+	if Verbose {
+	    fmt.Println("# processing", srcdir, srcname, info.date, "->", dstname)
+	}
+
+    var dstfiles []string
+	var err error
+	var dstfile string
+	dstfile, err = self.FindMonth(info, dstname)
+	if err == nil {
+	    dstfiles = append(dstfiles, dstfile)
+	} else if err == SameFile {
+	    err = nil
+	}
+
+	dstfile, err = self.FindDay(info, dstname)
+	if err == nil {
+	    dstfiles = append(dstfiles, dstfile)
+	} else if err == SameFile {
+	    err = nil
+	}
+
+	return dstfiles, err
 }

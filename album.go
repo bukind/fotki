@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
@@ -21,7 +20,7 @@ func init() {
 
 type Album struct {
 	root   string
-	images map[string]ImageInfo // good image -> their infos
+	images map[string]*ImageInfo // good image -> their infos
 	failed map[string]error     // failed image -> error
 	years  map[int]*YearDays    // year -> contents
 }
@@ -29,7 +28,7 @@ type Album struct {
 func NewAlbum(rootdir string) *Album {
 	self := new(Album)
 	self.root = rootdir
-	self.images = make(map[string]ImageInfo)
+	self.images = make(map[string]*ImageInfo)
 	self.failed = make(map[string]error)
 	self.years = make(map[int]*YearDays)
 	return self
@@ -79,7 +78,7 @@ func (self *Album) Scan(scandir string) error {
 	}
 
 	type Result struct {
-		info ImageInfo
+		info *ImageInfo
 		err  error
 	}
 
@@ -164,7 +163,7 @@ func (self *Album) Scan(scandir string) error {
 
 // relocate found images
 func (self *Album) Relocate() error {
-	for image, info := range self.images {
+	for _, info := range self.images {
 
 		year := self.years[info.date.year]
 		if year == nil {
@@ -172,49 +171,11 @@ func (self *Album) Relocate() error {
 			os.Exit(1)
 		}
 
-		// TODO: year.Relocate(image, info)
-
-		// The image must be normalized to have only lowercase letters.
-		// There must be two destination, per-day and per-month.
-		// The per-day destination may have optional suffix:
-		// YEARDIR/all/YYYY-MM/pic.jpg
-		// YEARDIR/YYYY-MM-DD[-suffix]/pic.jpg
-
-		srcdir, srcname := filepath.Split(image)
-		dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
-
-		if Verbose {
-			fmt.Println("# processing", srcdir, srcname, info.date, "->", dstname)
-		}
-
-		dstdirs := make([]string, 0)
-
-		var errx error
-		if dstdir, err := year.FindMonth(info.date, dstname, info.info); err == nil {
-			dstdirs = append(dstdirs, dstdir)
-		} else if err == SameFile {
-			if Verbose {
-				fmt.Printf("# same files %s and %s\n", image, dstdir)
-			}
-			errx = nil
-		} else {
-			errx = err
-		}
-		if dstdir, err := year.FindDay(info.date, dstname, info.info); err == nil {
-			dstdirs = append(dstdirs, dstdir)
-		} else if err == SameFile {
-			if Verbose {
-				fmt.Printf("# same files %s and %s\n", image, dstdir)
-			}
-			errx = nil
-		} else {
-			errx = err
-		}
-		if len(dstdirs) == 0 {
-			// both are failed
-			if errx != nil {
-				self.failed[image] = errx
-			}
+		dstdirs, err := year.Relocate(info)
+		if err != nil {
+		    self.failed[info.path] = err
+			continue
+		} else if len(dstdirs) == 0 {
 			continue
 		}
 
@@ -224,12 +185,9 @@ func (self *Album) Relocate() error {
 		}
 
 		for _, dst := range dstdirs {
-			if err := self.LinkImage(image, dst); err != nil {
-				errx = err
+			if err := self.LinkImage(info.path, dst); err != nil {
+			    self.failed[info.path] = err
 			}
-		}
-		if errx != nil {
-			self.failed[image] = errx
 		}
 	}
 
