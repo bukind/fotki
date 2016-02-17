@@ -250,7 +250,7 @@ func (self *YearDays) FindDay(date ImageDate, dstname string, srcinfo os.FileInf
 		self.day2dir[date] = dirset
 	}
 
-	dirname := date.DayString()
+	dirname := date.String()
 	dirset.Add(dirname)
 	dir := self.daydirs[dirname]
 	if dir == nil {
