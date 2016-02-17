@@ -2,15 +2,14 @@ package fotki
 
 import "testing"
 
-
 func TestGetImageKind(t *testing.T) {
-    type testRes struct {
-	    path string
-		res ImageKind
+	type testRes struct {
+		path string
+		res  ImageKind
 	}
 
 	tests := []testRes{
-	    {"", NoImage},
+		{"", NoImage},
 		{".jpg", IsImage},
 		{"A.JpG", IsImage},
 		{"B.JPEG", IsImage},
@@ -20,9 +19,9 @@ func TestGetImageKind(t *testing.T) {
 	}
 
 	for _, tr := range tests {
-	    res := GetImageKind(tr.path)
+		res := GetImageKind(tr.path)
 		if res != tr.res {
-		    t.Errorf("Wrong GetImageKind(%s) = %v, must be %v", tr.path, res, tr.res)
+			t.Errorf("Wrong GetImageKind(%s) = %v, must be %v", tr.path, res, tr.res)
 		}
 	}
 }
