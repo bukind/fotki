@@ -150,7 +150,7 @@ func (self *Album) Scan(scandir string) error {
 	}
 	for year, _ := range yearmap {
 		if _, ok := self.years[year]; !ok {
-			ydir := NewYearDays(self, year)
+			ydir := NewYearDays(self.root, year)
 			self.years[year] = ydir
 			if err := ydir.Scan(); err != nil {
 				return err
