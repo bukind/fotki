@@ -114,9 +114,7 @@ func (self *YearDays) Scan() error {
 					return nil
 				}
 			}
-			if path == self.basedir ||
-			   path == dayscandir[:len(dayscandir)-1] ||
-			   path == monscandir[:len(monscandir)-1] {
+			if path == self.basedir || path == dayscandir || path == monscandir {
 				return nil  // the scandir itself - ignore
 			}
 			// garbage dir remains
