@@ -20,7 +20,7 @@ type YearDays struct {
 	dirs    map[string]*Directory // absolute path -> directory
 	day2dir map[ImageDate]*StrSet // mapping date -> set of path
 	garbage *StrSet               // absolute path
-	tomake  []string // list of directories to make
+	tomake  []string              // list of directories to make
 }
 
 func NewYearDays(rootdir string, year int) *YearDays {
@@ -58,10 +58,10 @@ func (self *YearDays) String() string {
 
 // return the directory and the flag if it was just made
 func (self *YearDays) get_mondir(month int) (*Directory, bool) {
-    path := makePath(self.basedir, monbase, fmt.Sprintf("%02d", month))
+	path := makePath(self.basedir, monbase, fmt.Sprintf("%02d", month))
 	mondir, ok := self.dirs[path]
 	if !ok {
-	    mondir = NewDirectory(path)
+		mondir = NewDirectory(path)
 		self.dirs[path] = mondir
 	}
 	return mondir, !ok
@@ -83,7 +83,7 @@ func (self *YearDays) Scan() error {
 	// the function to scan
 	collectPerDayWalk := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-		    return nil  // failed - ignore
+			return nil // failed - ignore
 		}
 		root, last := filepath.Split(path)
 		root = filepath.Clean(root)
@@ -93,40 +93,40 @@ func (self *YearDays) Scan() error {
 				fmt.Println("# dir", path)
 			}
 			if root == dayscandir {
-			    match := yearPerDayRegex.FindStringSubmatch(last)
+				match := yearPerDayRegex.FindStringSubmatch(last)
 				if match != nil {
-				    // a match found, can proceed w/o error checking
-				    var date ImageDate
-				    date.year, _ = strconv.Atoi(match[1])
-				    date.month, _ = strconv.Atoi(match[2])
-				    date.day, _ = strconv.Atoi(match[3])
-				    if _, ok := self.day2dir[date]; !ok {
-				    	self.day2dir[date] = NewStrSet()
-				    }
-				    self.dirs[path] = NewDirectory(path)
-				    self.day2dir[date].Add(path)
+					// a match found, can proceed w/o error checking
+					var date ImageDate
+					date.year, _ = strconv.Atoi(match[1])
+					date.month, _ = strconv.Atoi(match[2])
+					date.day, _ = strconv.Atoi(match[3])
+					if _, ok := self.day2dir[date]; !ok {
+						self.day2dir[date] = NewStrSet()
+					}
+					self.dirs[path] = NewDirectory(path)
+					self.day2dir[date].Add(path)
 					return nil
 				}
 			} else if root == monscandir {
-			    month, err := strconv.Atoi(last)
+				month, err := strconv.Atoi(last)
 				if err == nil {
-				    _, _ = self.get_mondir(month)
+					_, _ = self.get_mondir(month)
 					return nil
 				}
 			}
 			if path == self.basedir || path == dayscandir || path == monscandir {
-				return nil  // the scandir itself - ignore
+				return nil // the scandir itself - ignore
 			}
 			// garbage dir remains
 			self.garbage.Add(path)
 			return filepath.SkipDir
 		} else {
-		    // normal file
+			// normal file
 			if dir, ok := self.dirs[root]; ok {
-			    // TODO: save info along
-			    dir.Add(last)
+				// TODO: save info along
+				dir.Add(last)
 			} else {
-			    self.garbage.Add(path)
+				self.garbage.Add(path)
 			}
 		}
 		return nil
@@ -289,7 +289,7 @@ func (self *YearDays) NormalizeDirs() error {
 	}
 	sort.Strings(dirs)
 	for _, src := range dirs {
-	    root, last := filepath.Split(src)
+		root, last := filepath.Split(src)
 		dst := filepath.Join(root, strings.Replace(last, "_", "-", -1))
 		if src == dst {
 			continue
@@ -307,31 +307,30 @@ func (self *YearDays) NormalizeDirs() error {
 	return nil
 }
 
-
 func (self *YearDays) Relocate(info *ImageInfo) ([]string, error) {
 
-    srcname := filepath.Base(info.path)
+	srcname := filepath.Base(info.path)
 	dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
 
 	if Verbose {
-	    fmt.Println("# processing", info.path, info.date, "->", dstname)
+		fmt.Println("# processing", info.path, info.date, "->", dstname)
 	}
 
-    var dstfiles []string
+	var dstfiles []string
 	var err error
 	var dstfile string
 	dstfile, err = self.findMonth(info, dstname)
 	if err == nil {
-	    dstfiles = append(dstfiles, dstfile)
+		dstfiles = append(dstfiles, dstfile)
 	} else if err == SameFile {
-	    err = nil
+		err = nil
 	}
 
 	dstfile, err = self.findDay(info, dstname)
 	if err == nil {
-	    dstfiles = append(dstfiles, dstfile)
+		dstfiles = append(dstfiles, dstfile)
 	} else if err == SameFile {
-	    err = nil
+		err = nil
 	}
 
 	return dstfiles, err

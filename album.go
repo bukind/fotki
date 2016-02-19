@@ -20,9 +20,9 @@ func init() {
 
 type Album struct {
 	root   string
-	images []*ImageInfo       // good image -> their infos
-	failed map[string]error   // failed image -> error
-	years  map[int]*YearDays  // year -> contents
+	images []*ImageInfo      // good image -> their infos
+	failed map[string]error  // failed image -> error
+	years  map[int]*YearDays // year -> contents
 }
 
 func NewAlbum(rootdir string) *Album {
@@ -173,7 +173,7 @@ func (self *Album) Relocate() error {
 
 		dstdirs, err := year.Relocate(info)
 		if err != nil {
-		    self.failed[info.path] = err
+			self.failed[info.path] = err
 			continue
 		} else if len(dstdirs) == 0 {
 			continue
@@ -186,7 +186,7 @@ func (self *Album) Relocate() error {
 
 		for _, dst := range dstdirs {
 			if err := self.LinkImage(info.path, dst); err != nil {
-			    self.failed[info.path] = err
+				self.failed[info.path] = err
 			}
 		}
 	}
