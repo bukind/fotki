@@ -143,7 +143,7 @@ func (self *YearDays) Scan() error {
 }
 
 /// find a suitable location to place an image, or return error
-func (self *YearDays) FindDay(info *ImageInfo, dstname string) (string, error) {
+func (self *YearDays) findDay(info *ImageInfo, dstname string) (string, error) {
 	var dirset *StrSet
 	var ok bool
 	if dirset, ok = self.day2dir[info.date]; ok {
@@ -197,7 +197,7 @@ func (self *YearDays) FindDay(info *ImageInfo, dstname string) (string, error) {
 	return dir.Path(dstname), nil
 }
 
-func (self *YearDays) FindMonth(info *ImageInfo, dstname string) (string, error) {
+func (self *YearDays) findMonth(info *ImageInfo, dstname string) (string, error) {
 	dir, justmade := self.get_mondir(info.date.month)
 	if dir.Has(dstname) {
 		return self.compareInfo(dir.Path(dstname), info.info)
@@ -320,14 +320,14 @@ func (self *YearDays) Relocate(info *ImageInfo) ([]string, error) {
     var dstfiles []string
 	var err error
 	var dstfile string
-	dstfile, err = self.FindMonth(info, dstname)
+	dstfile, err = self.findMonth(info, dstname)
 	if err == nil {
 	    dstfiles = append(dstfiles, dstfile)
 	} else if err == SameFile {
 	    err = nil
 	}
 
-	dstfile, err = self.FindDay(info, dstname)
+	dstfile, err = self.findDay(info, dstname)
 	if err == nil {
 	    dstfiles = append(dstfiles, dstfile)
 	} else if err == SameFile {
