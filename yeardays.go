@@ -77,7 +77,7 @@ func (self *YearDays) Scan() error {
 	yearPerDayRegex := regexp.MustCompile(`^(20[0123]\d)[-_](0[1-9]|1[012])[-_](0[1-9]|[123]\d)`)
 
 	if Verbose {
-		fmt.Println("# scanning", self.basedir)
+		fmt.Println("# scanning year at ", self.basedir)
 	}
 
 	// the function to scan
@@ -86,13 +86,11 @@ func (self *YearDays) Scan() error {
 		    return nil  // failed - ignore
 		}
 		root, last := filepath.Split(path)
+		root = filepath.Clean(root)
 
 		if info.Mode().IsDir() {
 			if Verbose {
 				fmt.Println("# dir", path)
-			}
-			if path == self.basedir || path == dayscandir || path == monscandir {
-				return nil  // the scandir itself - ignore
 			}
 			if root == dayscandir {
 			    match := yearPerDayRegex.FindStringSubmatch(last)
@@ -110,10 +108,16 @@ func (self *YearDays) Scan() error {
 					return nil
 				}
 			} else if root == monscandir {
-			    if month, err := strconv.Atoi(last); err == nil {
+			    month, err := strconv.Atoi(last)
+				if err == nil {
 				    _, _ = self.get_mondir(month)
 					return nil
 				}
+			}
+			if path == self.basedir ||
+			   path == dayscandir[:len(dayscandir)-1] ||
+			   path == monscandir[:len(monscandir)-1] {
+				return nil  // the scandir itself - ignore
 			}
 			// garbage dir remains
 			self.garbage.Add(path)
@@ -121,7 +125,8 @@ func (self *YearDays) Scan() error {
 		} else {
 		    // normal file
 			if dir, ok := self.dirs[root]; ok {
-			    dir.Add(info.Name())
+			    // TODO: save info along
+			    dir.Add(last)
 			} else {
 			    self.garbage.Add(path)
 			}
@@ -307,11 +312,11 @@ func (self *YearDays) NormalizeDirs() error {
 
 func (self *YearDays) Relocate(info *ImageInfo) ([]string, error) {
 
-	srcdir, srcname := filepath.Split(info.path)
+    srcname := filepath.Base(info.path)
 	dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
 
 	if Verbose {
-	    fmt.Println("# processing", srcdir, srcname, info.date, "->", dstname)
+	    fmt.Println("# processing", info.path, info.date, "->", dstname)
 	}
 
     var dstfiles []string
