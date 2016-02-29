@@ -20,8 +20,8 @@ func init() {
 
 type Album struct {
 	root   string
-	images []*ImageInfo      // good image -> their infos
-	failed map[string]error  // failed image -> error
+	images []*ImageInfo          // good image -> their infos
+	failed map[string]error      // failed image -> error
 	years  map[int]YearDayKeeper // year -> contents
 }
 
@@ -150,10 +150,10 @@ func (self *Album) Scan(scandir string) error {
 	}
 	for year, _ := range yearmap {
 		if _, ok := self.years[year]; !ok {
-		    if ydir, err := MakeYearDays(self.root, year); err != nil {
-			    return err
+			if ydir, err := MakeYearDays(self.root, year); err != nil {
+				return err
 			} else {
-			    self.years[year] = ydir
+				self.years[year] = ydir
 			}
 		}
 	}
@@ -171,20 +171,15 @@ func (self *Album) Relocate() error {
 			os.Exit(1)
 		}
 
-		dstdirs, err := year.Adopt(info)
+		dstfiles, err := year.Adopt(info)
 		if err != nil {
 			self.failed[info.path] = err
 			continue
-		} else if len(dstdirs) == 0 {
+		} else if len(dstfiles) == 0 {
 			continue
 		}
 
-		if err := year.MakeAllDirs(); err != nil {
-			// failed to create dir
-			return err
-		}
-
-		for _, dst := range dstdirs {
+		for _, dst := range dstfiles {
 			if err := self.LinkImage(info.path, dst); err != nil {
 				self.failed[info.path] = err
 			}

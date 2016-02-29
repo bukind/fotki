@@ -1,7 +1,9 @@
 package fotki
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 )
 
@@ -50,4 +52,11 @@ func (self *Directory) Add(item string) {
 func (self *Directory) Has(item string) bool {
 	_, ok := self.items[item]
 	return ok
+}
+
+func (self *Directory) Stat(item string) (os.FileInfo, error) {
+	if !self.Has(item) {
+		return nil, &os.PathError{Op: "Stat", Path: self.Path(item), Err: errors.New("not found")}
+	}
+	return os.Stat(self.Path(item))
 }

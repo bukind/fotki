@@ -16,13 +16,11 @@ const daybase = ""
 const monbase = "all"
 
 type YearDayKeeper interface {
-    // represent the inner state
-    String() string
+	// represent the inner state
+	String() string
 	// adopt a new image into the year
-    Adopt(info *ImageInfo) ([]string, error)
+	Adopt(info *ImageInfo) ([]string, error)
 
-	// temporary
-	MakeAllDirs() error
 	NormalizeDirs() error
 }
 
@@ -31,7 +29,6 @@ type yearDays struct {
 	dirs    map[string]*Directory // absolute path -> directory
 	day2dir map[ImageDate]*StrSet // mapping date -> set of path
 	garbage *StrSet               // absolute path
-	tomake  []string              // list of directories to make
 }
 
 func MakeYearDays(rootdir string, year int) (YearDayKeeper, error) {
@@ -155,7 +152,8 @@ func (self *yearDays) scan() error {
 }
 
 /// find a suitable location to place an image, or return error
-func (self *yearDays) findDay(info *ImageInfo, dstname string) (string, error) {
+func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, bool, error) {
+	var res error
 	var dirset *StrSet
 	var ok bool
 	if dirset, ok = self.day2dir[info.date]; ok {
@@ -170,11 +168,13 @@ func (self *yearDays) findDay(info *ImageInfo, dstname string) (string, error) {
 			if Verbose {
 				fmt.Printf("# checking %s\n", dir.Path())
 			}
-			if dir.Has(dstname) {
-				if Verbose {
-					fmt.Println("# file is found in day", dir.Path(dstname))
+			if dstinfo, err := dir.Stat(dstname); err == nil {
+				if os.SameFile(dstinfo, info.info) {
+					res = SameFile
+				} else {
+					res = fmt.Errorf("file exists %s", dir.Path(dstname))
 				}
-				return self.compareInfo(dir.Path(dstname), info.info)
+				return dir, false, res
 			}
 		}
 		// file is not found in subdirs
@@ -185,7 +185,7 @@ func (self *yearDays) findDay(info *ImageInfo, dstname string) (string, error) {
 			if Verbose {
 				fmt.Printf("# file %s is not found in a single daydir %s\n", dstname, dir.Path(dstname))
 			}
-			return dir.Path(dstname), nil
+			return dir, false, nil
 		}
 	} else {
 		// no dirset exists
@@ -196,29 +196,31 @@ func (self *yearDays) findDay(info *ImageInfo, dstname string) (string, error) {
 	dirname := makePath(self.basedir, daybase, info.date.String())
 	dirset.Add(dirname)
 	dir := self.dirs[dirname]
+	var justmade bool
 	if dir == nil {
 		// just has been made
 		dir = NewDirectory(dirname)
 		self.dirs[dirname] = dir
-		self.tomake = append(self.tomake, dir.Path())
+		justmade = true
 	}
 	dir.Add(dstname)
-	if Verbose {
-		fmt.Printf("# dayset has no file: %v\n", dirset)
-	}
-	return dir.Path(dstname), nil
+	return dir, justmade, nil
 }
 
-func (self *yearDays) findMonth(info *ImageInfo, dstname string) (string, error) {
+func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory, bool, error) {
+	var res error
 	dir, justmade := self.get_mondir(info.date.month)
-	if dir.Has(dstname) {
-		return self.compareInfo(dir.Path(dstname), info.info)
+	if dstinfo, err := dir.Stat(dstname); err == nil {
+		if os.SameFile(dstinfo, info.info) {
+			res = SameFile
+		} else {
+			res = fmt.Errorf("file exists %s", dir.Path(dstname))
+		}
+	} else {
+		// file not found
+		dir.Add(dstname)
 	}
-	dir.Add(dstname)
-	if justmade {
-		self.tomake = append(self.tomake, dir.Path())
-	}
-	return dir.Path(dstname), nil
+	return dir, justmade, res
 }
 
 // check if the destination is the same as origin
@@ -261,9 +263,9 @@ func makedir(dir string) (os.FileInfo, error) {
 	return os.Lstat(dir)
 }
 
-func (self *yearDays) MakeAllDirs() error {
-	for _, dir := range self.tomake {
-		_, err := makedir(dir)
+func (self *yearDays) makeAllDirs(tomake []*Directory) error {
+	for _, dir := range tomake {
+		_, err := makedir(dir.Path())
 		if err != nil {
 			return err
 		}
@@ -274,11 +276,11 @@ func (self *yearDays) MakeAllDirs() error {
 
 		// directory exists, try to create a file
 		timestr := time.Now().Format(time.RFC3339Nano)
-		fname := filepath.Join(dir, strings.Replace(timestr, ":", ".", -1))
+		fname := dir.Path(strings.Replace(timestr, ":", ".", -1))
 		fd, err := os.Create(fname)
 
 		mkerr := func(action string) error {
-			return fmt.Errorf("cannot %s a file in %s: %s", action, dir, err.Error())
+			return fmt.Errorf("cannot %s a file in %s: %s", action, dir.Path(), err.Error())
 		}
 		if err != nil {
 			return mkerr("create")
@@ -290,7 +292,6 @@ func (self *yearDays) MakeAllDirs() error {
 			return mkerr("remove")
 		}
 	}
-	self.tomake = nil
 	return nil
 }
 
@@ -329,21 +330,31 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, error) {
 	}
 
 	var dstfiles []string
-	var err error
-	var dstfile string
-	dstfile, err = self.findMonth(info, dstname)
-	if err == nil {
-		dstfiles = append(dstfiles, dstfile)
-	} else if err == SameFile {
-		err = nil
+	var tomake []*Directory
+	dir, justmade, err := self.findMonthDir(info, dstname)
+	if err != nil {
+		if err != SameFile {
+			return dstfiles, err
+		}
+	} else {
+		dstfiles = append(dstfiles, dir.Path(dstname))
+		if justmade {
+			tomake = append(tomake, dir)
+		}
 	}
 
-	dstfile, err = self.findDay(info, dstname)
-	if err == nil {
-		dstfiles = append(dstfiles, dstfile)
-	} else if err == SameFile {
-		err = nil
+	dir, justmade, err = self.findDayDir(info, dstname)
+	if err != nil {
+		if err != SameFile {
+			return dstfiles, err
+		}
+	} else {
+		dstfiles = append(dstfiles, dir.Path(dstname))
+		if justmade {
+			tomake = append(tomake, dir)
+		}
 	}
 
-	return dstfiles, err
+	// create all dirs
+	return dstfiles, self.makeAllDirs(tomake)
 }
