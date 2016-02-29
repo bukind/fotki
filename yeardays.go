@@ -15,7 +15,18 @@ import (
 const daybase = ""
 const monbase = "all"
 
-type YearDays struct {
+type YearDayKeeper interface {
+    // represent the inner state
+    String() string
+	// adopt a new image into the year
+    Adopt(info *ImageInfo) ([]string, error)
+
+	// temporary
+	MakeAllDirs() error
+	NormalizeDirs() error
+}
+
+type yearDays struct {
 	basedir string
 	dirs    map[string]*Directory // absolute path -> directory
 	day2dir map[ImageDate]*StrSet // mapping date -> set of path
@@ -23,16 +34,16 @@ type YearDays struct {
 	tomake  []string              // list of directories to make
 }
 
-func NewYearDays(rootdir string, year int) *YearDays {
-	self := new(YearDays)
+func MakeYearDays(rootdir string, year int) (YearDayKeeper, error) {
+	self := new(yearDays)
 	self.basedir = filepath.Join(rootdir, strconv.Itoa(year))
 	self.dirs = make(map[string]*Directory)
 	self.day2dir = make(map[ImageDate]*StrSet)
 	self.garbage = NewStrSet()
-	return self
+	return self, self.scan()
 }
 
-func (self *YearDays) String() string {
+func (self *yearDays) String() string {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "year:%s\n", self.basedir)
 	dkeys := make([]ImageDate, 0, len(self.day2dir))
@@ -57,7 +68,7 @@ func (self *YearDays) String() string {
 }
 
 // return the directory and the flag if it was just made
-func (self *YearDays) get_mondir(month int) (*Directory, bool) {
+func (self *yearDays) get_mondir(month int) (*Directory, bool) {
 	path := makePath(self.basedir, monbase, fmt.Sprintf("%02d", month))
 	mondir, ok := self.dirs[path]
 	if !ok {
@@ -67,7 +78,8 @@ func (self *YearDays) get_mondir(month int) (*Directory, bool) {
 	return mondir, !ok
 }
 
-func (self *YearDays) Scan() error {
+// This one is called from constructor
+func (self *yearDays) scan() error {
 
 	// scanning day dirs
 
@@ -143,7 +155,7 @@ func (self *YearDays) Scan() error {
 }
 
 /// find a suitable location to place an image, or return error
-func (self *YearDays) findDay(info *ImageInfo, dstname string) (string, error) {
+func (self *yearDays) findDay(info *ImageInfo, dstname string) (string, error) {
 	var dirset *StrSet
 	var ok bool
 	if dirset, ok = self.day2dir[info.date]; ok {
@@ -197,7 +209,7 @@ func (self *YearDays) findDay(info *ImageInfo, dstname string) (string, error) {
 	return dir.Path(dstname), nil
 }
 
-func (self *YearDays) findMonth(info *ImageInfo, dstname string) (string, error) {
+func (self *yearDays) findMonth(info *ImageInfo, dstname string) (string, error) {
 	dir, justmade := self.get_mondir(info.date.month)
 	if dir.Has(dstname) {
 		return self.compareInfo(dir.Path(dstname), info.info)
@@ -210,7 +222,7 @@ func (self *YearDays) findMonth(info *ImageInfo, dstname string) (string, error)
 }
 
 // check if the destination is the same as origin
-func (self *YearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, error) {
+func (self *yearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, error) {
 	dstinfo, err := os.Stat(dst)
 	if err != nil {
 		return "", fmt.Errorf("cannot stat %s: %s", dst, err.Error())
@@ -249,7 +261,7 @@ func makedir(dir string) (os.FileInfo, error) {
 	return os.Lstat(dir)
 }
 
-func (self *YearDays) MakeAllDirs() error {
+func (self *yearDays) MakeAllDirs() error {
 	for _, dir := range self.tomake {
 		_, err := makedir(dir)
 		if err != nil {
@@ -282,7 +294,7 @@ func (self *YearDays) MakeAllDirs() error {
 	return nil
 }
 
-func (self *YearDays) NormalizeDirs() error {
+func (self *yearDays) NormalizeDirs() error {
 	dirs := make([]string, 0, len(self.dirs))
 	for _, dir := range self.dirs {
 		dirs = append(dirs, dir.Path())
@@ -307,7 +319,7 @@ func (self *YearDays) NormalizeDirs() error {
 	return nil
 }
 
-func (self *YearDays) Relocate(info *ImageInfo) ([]string, error) {
+func (self *yearDays) Adopt(info *ImageInfo) ([]string, error) {
 
 	srcname := filepath.Base(info.path)
 	dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)

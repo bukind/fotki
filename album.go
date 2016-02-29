@@ -22,7 +22,7 @@ type Album struct {
 	root   string
 	images []*ImageInfo      // good image -> their infos
 	failed map[string]error  // failed image -> error
-	years  map[int]*YearDays // year -> contents
+	years  map[int]YearDayKeeper // year -> contents
 }
 
 func NewAlbum(rootdir string) *Album {
@@ -30,7 +30,7 @@ func NewAlbum(rootdir string) *Album {
 	self.root = rootdir
 	// self.images = make([]*ImageInfo,0)
 	self.failed = make(map[string]error)
-	self.years = make(map[int]*YearDays)
+	self.years = make(map[int]YearDayKeeper)
 	return self
 }
 
@@ -150,10 +150,10 @@ func (self *Album) Scan(scandir string) error {
 	}
 	for year, _ := range yearmap {
 		if _, ok := self.years[year]; !ok {
-			ydir := NewYearDays(self.root, year)
-			self.years[year] = ydir
-			if err := ydir.Scan(); err != nil {
-				return err
+		    if ydir, err := MakeYearDays(self.root, year); err != nil {
+			    return err
+			} else {
+			    self.years[year] = ydir
 			}
 		}
 	}
@@ -171,7 +171,7 @@ func (self *Album) Relocate() error {
 			os.Exit(1)
 		}
 
-		dstdirs, err := year.Relocate(info)
+		dstdirs, err := year.Adopt(info)
 		if err != nil {
 			self.failed[info.path] = err
 			continue
