@@ -16,6 +16,7 @@ func makePath(elts ...string) string {
 	return filepath.Join(elts...)
 }
 
+// NewDirectory creates a Directory from the list of paths.
 func NewDirectory(path ...string) *Directory {
 	self := new(Directory)
 	self.path = makePath(path...)
@@ -23,6 +24,7 @@ func NewDirectory(path ...string) *Directory {
 	return self
 }
 
+// Path returns the path of the directory joined with optional arguments.
 func (self *Directory) Path(path ...string) string {
 	if len(path) > 0 {
 		full := make([]string, len(path)+1)
