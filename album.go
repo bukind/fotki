@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -51,6 +53,56 @@ func (self *Album) String() string {
 	return buf.String()
 }
 
+// IsLeafDir check if the path is a leaf (day/month) dir in the album
+func (self *Album) IsLeafDir(path string) bool {
+	var err error
+	var rel string
+	if rel, err = filepath.Rel(self.root, path); err != nil {
+		return false
+	}
+	items := strings.SplitN(rel, string(os.PathSeparator), -1)
+	if len(items) < 2 || len(items[0]) != 4 {
+		return false
+	}
+	var year int
+	if year, err = strconv.Atoi(items[0]); err != nil {
+		return false
+	}
+	if year < 2000 {
+		return false
+	}
+	last := items[len(items)-1]
+	middle := strings.Join(items[1:len(items)-1], string(os.PathSeparator))
+	if middle == daybase {
+		if len(last) < 10 {
+			return false
+		}
+		var y, m, d int
+		if _, err := fmt.Sscanf(last[:10], "%04d-%02d-%02d", &y, &m, &d); err != nil {
+			return false
+		}
+		if y != year || m < 1 || m > 12 || d < 1 || d > 31 {
+			return false
+		}
+		if len(last) > 10 && last[10] != '-' {
+			return false
+		}
+		// valid as day
+		return true
+	} else if middle == monbase {
+		var month int
+		if month, err = strconv.Atoi(last); err != nil {
+			return false
+		}
+		if month < 1 || month > 12 {
+			return false
+		}
+		// valid as month
+		return true
+	}
+	return false
+}
+
 // Scan performs the deep search in scandir to find images/movies.
 func (self *Album) Scan(scandir string) error {
 
@@ -64,6 +116,7 @@ func (self *Album) Scan(scandir string) error {
 		}
 		if !info.Mode().IsRegular() {
 			// we are only interested in the regular files
+			// if info.Mode().IsDir() && NoRescan && ....
 			return nil
 		}
 		kind := GetImageKind(info.Name())
