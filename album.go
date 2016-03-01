@@ -116,7 +116,13 @@ func (self *Album) Scan(scandir string) error {
 		}
 		if !info.Mode().IsRegular() {
 			// we are only interested in the regular files
-			// if info.Mode().IsDir() && NoRescan && ....
+			if info.Mode().IsDir() && NoRescan && self.IsLeafDir(path) {
+				// should not be rescanned
+				if Verbose {
+					fmt.Println("# skip dir", path)
+				}
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		kind := GetImageKind(info.Name())
