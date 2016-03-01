@@ -25,6 +25,7 @@ type Album struct {
 	years  map[int]YearDayKeeper // year -> contents
 }
 
+// Creates a new empty Album based in the rootdir.
 func NewAlbum(rootdir string) *Album {
 	self := new(Album)
 	self.root = rootdir
@@ -34,6 +35,7 @@ func NewAlbum(rootdir string) *Album {
 	return self
 }
 
+// String returns the representation of the Album.
 func (self *Album) String() string {
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "root=%s\n", self.root)
@@ -49,6 +51,7 @@ func (self *Album) String() string {
 	return buf.String()
 }
 
+// Scan performs the deep search in scandir to find images/movies.
 func (self *Album) Scan(scandir string) error {
 
 	istty := IsTTY(os.Stdout)
@@ -161,7 +164,7 @@ func (self *Album) Scan(scandir string) error {
 	return nil
 }
 
-// relocate found images
+// Relocate all found images/movies to their canonical place.
 func (self *Album) Relocate() error {
 	for _, info := range self.images {
 
@@ -180,7 +183,7 @@ func (self *Album) Relocate() error {
 		}
 
 		for _, dst := range dstfiles {
-			if err := self.LinkImage(info.path, dst); err != nil {
+			if err := self.linkImage(info.path, dst); err != nil {
 				self.failed[info.path] = err
 			}
 		}
@@ -195,7 +198,7 @@ func (self *Album) Relocate() error {
 	return nil
 }
 
-func (self *Album) LinkImage(src string, dst string) error {
+func (self *Album) linkImage(src string, dst string) error {
 	if Verbose {
 		fmt.Println("# linking", src, "from", dst)
 	}
