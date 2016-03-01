@@ -75,50 +75,6 @@ func (self *yearDays) get_mondir(month int) (*Directory, bool) {
 	return mondir, !ok
 }
 
-// Checks if the path is a leaf (day/month) dir inside the year
-func (self *yearDays) IsLeafDir(path string) bool {
-	if !strings.HasPrefix(path, self.basedir) {
-		return false
-	}
-	daydir := makePath(self.basedir, daybase)
-	mondir := makePath(self.basedir, monbase)
-	if !strings.HasPrefix(path, daydir) && !strings.HasPrefix(path, mondir) {
-		return false
-	}
-	root, last := filepath.Split(path)
-	root = filepath.Clean(root)
-	if root == daydir {
-		// daydir ?
-		if len(last) < 10 {
-			return false
-		}
-		var y, m, d int
-		if _, err := fmt.Sscanf(last[:10], "%04d-%02d-%02d", &y, &m, &d); err != nil {
-			return false
-		}
-		if y < 2000 || m < 1 || m > 12 || d < 1 || d > 31 {
-			return false
-		}
-		if len(last) > 10 && last[10] != '-' {
-			return false
-		}
-		// valid as day
-		return true
-	} else if root == mondir {
-		if len(last) != 2 {
-			return false
-		}
-		if m, err := strconv.Atoi(last); err != nil {
-			return false
-		} else if m < 1 || m > 12 {
-			return false
-		}
-		// valid as month
-		return true
-	}
-	return false
-}
-
 // This one is called from constructor
 func (self *yearDays) scan() error {
 

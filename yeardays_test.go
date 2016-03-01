@@ -26,27 +26,3 @@ func TestMakedir(t *testing.T) {
 		t.Fatalf("wrong parameters of the directory, %v\n", info)
 	}
 }
-
-func TestYearDaysIsLeafDir(t *testing.T) {
-	self := new(yearDays)
-	dir := "/tmp"
-	self.basedir = dir
-
-	ensure := func(expected bool, path ...string) {
-		full := makePath(dir, makePath(path...))
-		res := self.IsLeafDir(full)
-		if res != expected {
-			t.Errorf("incorrect result of IsLeafDir(%s) = %v, must be %v\n", full, res, expected)
-		}
-	}
-
-	ensure(false)
-	ensure(true, daybase, "2001-01-01")
-	ensure(true, daybase, "2001-01-01-hello")
-	ensure(false, daybase, "2001")
-	ensure(false, daybase, "2001_01_01")
-	ensure(false, daybase, "2001-01-01badsuffix")
-	ensure(false, monbase, "00")
-	ensure(true, monbase, "01")
-	ensure(false, monbase, "aa")
-}
