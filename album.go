@@ -116,7 +116,7 @@ func (self *Album) Scan(scandir string) error {
 		}
 		if !info.Mode().IsRegular() {
 			// we are only interested in the regular files
-			if info.Mode().IsDir() && NoRescan && self.IsLeafDir(path) {
+			if info.Mode().IsDir() && Rescan && self.IsLeafDir(path) {
 				// should not be rescanned
 				if Verbose {
 					fmt.Println("# skip dir", path)

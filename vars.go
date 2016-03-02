@@ -6,9 +6,12 @@ import (
 	"os"
 )
 
+// Print some verbose info if true.
 var Verbose bool = false
+// Do not modify filesystem if true.
 var DryRun bool = false
-var NoRescan bool = false
+// Do rescan of valid directories under root if true.
+var Rescan bool = false
 
 var SameFile = errors.New("the same file found")
 var Garbage = errors.New("not an image")
