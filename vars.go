@@ -8,8 +8,10 @@ import (
 
 // Print some verbose info if true.
 var Verbose bool = false
+
 // Do not modify filesystem if true.
 var DryRun bool = false
+
 // Do rescan of valid directories under root if true.
 var Rescan bool = false
 

@@ -8,7 +8,7 @@ import (
 )
 
 type Directory struct {
-	path  string          // absolute path of the dir
+	path  string                 // absolute path of the dir
 	items map[string]os.FileInfo // relative paths of the contents
 }
 
@@ -60,17 +60,17 @@ func (self *Directory) Has(item string) bool {
 }
 
 func (self *Directory) Stat(item string) (os.FileInfo, error) {
-    if fi, ok := self.items[item]; !ok {
+	if fi, ok := self.items[item]; !ok {
 		return nil, &os.PathError{Op: "Stat", Path: self.Path(item), Err: errors.New("not found")}
 	} else {
-	    if fi == nil {
-		    var err error
-		    if fi, err = os.Stat(self.Path(item)); err != nil {
-			    fmt.Println("# negative hit Stat:", self.Path(item))
-			    return nil, err
+		if fi == nil {
+			var err error
+			if fi, err = os.Stat(self.Path(item)); err != nil {
+				fmt.Println("# negative hit Stat:", self.Path(item))
+				return nil, err
 			}
 			self.items[item] = fi
 		}
-	    return fi, nil
+		return fi, nil
 	}
 }
