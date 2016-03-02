@@ -40,3 +40,4 @@ Feature requests:
   * NOT NEEDED: Collect md5sum of images to eliminate duplicates
   * Identify garbage and optionally remove it.
   * DONE: Store FileInfo in dir while scanning to optimize disk access
+  * Separate dir search and modification in Relocate()
