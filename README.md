@@ -37,6 +37,6 @@ the directory to start scanning.
 Feature requests:
   * Remove original photos after they are moved into destination folders
   * DONE: Avoid descending to the canonical folders (months, days) while scanning
-  * Collect md5sum of images to eliminate duplicates (check if we need this?)
+  * NOT NEEDED: Collect md5sum of images to eliminate duplicates
   * Identify garbage and optionally remove it.
-  * Store FileInfo in dir while scanning to optimize disk access
+  * DONE: Store FileInfo in dir while scanning to optimize disk access

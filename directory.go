@@ -9,7 +9,7 @@ import (
 
 type Directory struct {
 	path  string          // absolute path of the dir
-	items map[string]bool // relative paths of the contents
+	items map[string]os.FileInfo // relative paths of the contents
 }
 
 func makePath(elts ...string) string {
@@ -20,7 +20,7 @@ func makePath(elts ...string) string {
 func NewDirectory(path ...string) *Directory {
 	self := new(Directory)
 	self.path = makePath(path...)
-	self.items = make(map[string]bool)
+	self.items = make(map[string]os.FileInfo)
 	return self
 }
 
@@ -35,7 +35,7 @@ func (self *Directory) Path(path ...string) string {
 	return self.path
 }
 
-func (self *Directory) Contents() []string {
+func (self *Directory) contents() []string {
 	result := make([]string, 0, len(self.items))
 	for key := range self.items {
 		result = append(result, key)
@@ -44,21 +44,33 @@ func (self *Directory) Contents() []string {
 }
 
 func (self *Directory) String() string {
-	return fmt.Sprintf("%v", self.Contents())
+	return fmt.Sprintf("%v", self.contents())
 }
 
-func (self *Directory) Add(item string) {
-	self.items[item] = true
+// Add an item w/o creating it in the directory.
+func (self *Directory) Add(item string, info os.FileInfo) {
+	self.items[item] = info
 }
 
+// Check if the item exists in the directory.
+// The item may not exist on disk yet.
 func (self *Directory) Has(item string) bool {
 	_, ok := self.items[item]
 	return ok
 }
 
 func (self *Directory) Stat(item string) (os.FileInfo, error) {
-	if !self.Has(item) {
+    if fi, ok := self.items[item]; !ok {
 		return nil, &os.PathError{Op: "Stat", Path: self.Path(item), Err: errors.New("not found")}
+	} else {
+	    if fi == nil {
+		    var err error
+		    if fi, err = os.Stat(self.Path(item)); err != nil {
+			    fmt.Println("# negative hit Stat:", self.Path(item))
+			    return nil, err
+			}
+			self.items[item] = fi
+		}
+	    return fi, nil
 	}
-	return os.Stat(self.Path(item))
 }

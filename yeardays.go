@@ -133,7 +133,7 @@ func (self *yearDays) scan() error {
 			// normal file
 			if dir, ok := self.dirs[root]; ok {
 				// TODO: save info along
-				dir.Add(last)
+				dir.Add(last, info)
 			} else {
 				self.garbage.Add(path)
 			}
@@ -181,7 +181,7 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 		if dirset.Len() == 1 {
 			// only one subdir
 			dir := self.dirs[found]
-			dir.Add(dstname) // update the output
+			dir.Add(dstname, nil) // update the output
 			if Verbose {
 				fmt.Printf("# file %s is not found in a single daydir %s\n", dstname, dir.Path(dstname))
 			}
@@ -203,7 +203,7 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 		self.dirs[dirname] = dir
 		justmade = true
 	}
-	dir.Add(dstname)
+	dir.Add(dstname, nil)
 	return dir, justmade, nil
 }
 
@@ -218,7 +218,7 @@ func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory,
 		}
 	} else {
 		// file not found
-		dir.Add(dstname)
+		dir.Add(dstname, nil)
 	}
 	return dir, justmade, res
 }
