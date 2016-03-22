@@ -19,7 +19,7 @@ type YearDayKeeper interface {
 	// represent the inner state
 	String() string
 	// adopt a new image into the year
-	Adopt(info *ImageInfo) ([]string, error)
+	Adopt(info *ImageInfo) ([]string, bool, error)
 
 	NormalizeDirs() error
 }
@@ -170,7 +170,7 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 			}
 			if dstinfo, err := dir.Stat(dstname); err == nil {
 				if os.SameFile(dstinfo, info.info) {
-					res = SameFile
+					res = SameFileError
 				} else {
 					res = fmt.Errorf("file exists %s", dir.Path(dstname))
 				}
@@ -212,7 +212,7 @@ func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory,
 	dir, justmade := self.get_mondir(info.date.month)
 	if dstinfo, err := dir.Stat(dstname); err == nil {
 		if os.SameFile(dstinfo, info.info) {
-			res = SameFile
+			res = SameFileError
 		} else {
 			res = fmt.Errorf("file exists %s", dir.Path(dstname))
 		}
@@ -230,7 +230,7 @@ func (self *yearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, erro
 		return "", fmt.Errorf("cannot stat %s: %s", dst, err.Error())
 	}
 	if os.SameFile(dstinfo, srcinfo) {
-		return dst, SameFile
+		return dst, SameFileError
 	}
 	return "", fmt.Errorf("file exists %s", dst)
 }
@@ -320,7 +320,7 @@ func (self *yearDays) NormalizeDirs() error {
 	return nil
 }
 
-func (self *yearDays) Adopt(info *ImageInfo) ([]string, error) {
+func (self *yearDays) Adopt(info *ImageInfo) ([]string, bool, error) {
 
 	srcname := filepath.Base(info.path)
 	dstname := strings.Replace(strings.ToLower(srcname), " ", "_", -1)
@@ -333,8 +333,8 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, error) {
 	var tomake []*Directory
 	dir, justmade, err := self.findMonthDir(info, dstname)
 	if err != nil {
-		if err != SameFile {
-			return dstfiles, err
+		if err != SameFileError {
+			return dstfiles, false, err
 		}
 	} else {
 		dstfiles = append(dstfiles, dir.Path(dstname))
@@ -345,8 +345,8 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, error) {
 
 	dir, justmade, err = self.findDayDir(info, dstname)
 	if err != nil {
-		if err != SameFile {
-			return dstfiles, err
+		if err != SameFileError {
+			return dstfiles, false, err
 		}
 	} else {
 		dstfiles = append(dstfiles, dir.Path(dstname))
@@ -356,5 +356,5 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, error) {
 	}
 
 	// create all dirs
-	return dstfiles, self.makeAllDirs(tomake)
+	return dstfiles, false, self.makeAllDirs(tomake)
 }

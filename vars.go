@@ -15,8 +15,12 @@ var DryRun bool = false
 // Do rescan of valid directories under root if true.
 var Rescan bool = false
 
-var SameFile = errors.New("the same file found")
-var Garbage = errors.New("not an image")
+// Remove the original files
+var RemoveOld bool = false
+
+var SameFileError = errors.New("the same file as detected by OS")
+var IdenticalError = errors.New("the files are identical")
+var GarbageError = errors.New("not an image")
 
 type ImageKind int
 

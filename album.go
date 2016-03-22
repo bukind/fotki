@@ -128,7 +128,7 @@ func (self *Album) Scan(scandir string) error {
 		kind := GetImageKind(info.Name())
 		switch kind {
 		case NoImage:
-			self.failed[path] = Garbage
+			self.failed[path] = GarbageError
 		default:
 			imagelist = append(imagelist, &ImageLoc{path, info, kind})
 		}
@@ -233,18 +233,24 @@ func (self *Album) Relocate() error {
 			os.Exit(1)
 		}
 
-		dstfiles, err := year.Adopt(info)
+		dstfiles, maykill, err := year.Adopt(info)
+		_ = maykill
+
 		if err != nil {
 			self.failed[info.path] = err
 			continue
-		} else if len(dstfiles) == 0 {
-			continue
 		}
 
-		for _, dst := range dstfiles {
-			if err := self.linkImage(info.path, dst); err != nil {
-				self.failed[info.path] = err
+		if len(dstfiles) > 0 {
+		    for _, dst := range dstfiles {
+			    if err := self.linkImage(info.path, dst); err != nil {
+				    self.failed[info.path] = err
+			    }
 			}
+		}
+
+		if maykill && RemoveOld {
+		    // we can remove the file from the old location
 		}
 	}
 
