@@ -215,26 +215,25 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 		self.dirs[dirname] = dir
 		justmade = true
 	}
-	dir.Add(dstname, nil)
 	return dir, justmade, nil
 }
 
 func Md5sum(path string) ([]byte, error) {
-    fd, err := os.Open(path)
+	fd, err := os.Open(path)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 	defer fd.Close()
 	const bufsize = 0x10000
 	buf := make([]byte, bufsize)
 	h := md5.New()
 	for {
-	    count, err := fd.Read(buf)
+		count, err := fd.Read(buf)
 		if err != nil && err != io.EOF {
-		    return nil, err
+			return nil, err
 		}
 		if count == 0 {
-		    break
+			break
 		}
 		h.Write(buf[:count])
 	}
@@ -251,9 +250,6 @@ func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory,
 		} else {
 			res = AlreadyExistError
 		}
-	} else {
-		// file not found
-		dir.Add(dstname, nil)
 	}
 	return dir, justmade, res
 }
@@ -384,6 +380,7 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, bool, error) {
 			return dstfiles, false, err
 		} else {
 			// the file does not exist yet
+			dir.Add(dstname, nil)
 			dstfiles = append(dstfiles, dir.Path(dstname))
 			if justmade {
 				tomake = append(tomake, dir)
