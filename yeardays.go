@@ -2,7 +2,9 @@ package fotki
 
 import (
 	"bytes"
+	"crypto/md5"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -175,8 +177,8 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 					// compare the md5sum
 					res = AlreadyExistError
 					if info.info.Size() == dstinfo.Size() {
-						if srchash, err := self.md5sum(info.path); err == nil {
-							if dsthash, err := self.md5sum(dir.Path(dstname)); err == nil {
+						if srchash, err := Md5sum(info.path); err == nil {
+							if dsthash, err := Md5sum(dir.Path(dstname)); err == nil {
 								if bytes.Compare(srchash, dsthash) == 0 {
 									res = IdenticalError
 								}
@@ -217,8 +219,26 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 	return dir, justmade, nil
 }
 
-func (self *yearDays) md5sum(path string) ([]byte, error) {
-	return nil, nil
+func Md5sum(path string) ([]byte, error) {
+    fd, err := os.Open(path)
+	if err != nil {
+	    return nil, err
+	}
+	defer fd.Close()
+	const bufsize = 0x10000
+	buf := make([]byte, bufsize)
+	h := md5.New()
+	for {
+	    count, err := fd.Read(buf)
+		if err != nil && err != io.EOF {
+		    return nil, err
+		}
+		if count == 0 {
+		    break
+		}
+		h.Write(buf[:count])
+	}
+	return h.Sum(nil), nil
 }
 
 // Compare the destination and the original.
