@@ -172,7 +172,17 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 				if os.SameFile(dstinfo, info.info) {
 					res = SameFileError
 				} else {
+					// compare the md5sum
 					res = AlreadyExistError
+					if info.info.Size() == dstinfo.Size() {
+						if srchash, err := self.md5sum(info.path); err == nil {
+							if dsthash, err := self.md5sum(dir.Path(dstname)); err == nil {
+								if bytes.Compare(srchash, dsthash) == 0 {
+									res = IdenticalError
+								}
+							}
+						}
+					}
 				}
 				return dir, false, res
 			}
@@ -205,6 +215,10 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 	}
 	dir.Add(dstname, nil)
 	return dir, justmade, nil
+}
+
+func (self *yearDays) md5sum(path string) ([]byte, error) {
+	return nil, nil
 }
 
 // Compare the destination and the original.
@@ -336,16 +350,17 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, bool, error) {
 	var tomake []*Directory
 	funcs := [...]func(*ImageInfo, string) (*Directory, bool, error){self.findMonthDir, self.findDayDir}
 
-	tokill := True // allow to kill the original file
+	tokill := true // allow to kill the original file
 	for _, f := range funcs {
 		dir, justmade, err := f(info, dstname)
 		if err != nil {
 			if err == SameFileError {
+				if srcname == dstname && info.path == dir.Path(dstname) {
+					// we cannot delete the file as the path are the same as well
+					tokill = false
+				}
 				continue
 			}
-			// if err == AlreadyExistError {
-			//    continue
-			// }
 			return dstfiles, false, err
 		} else {
 			// the file does not exist yet
@@ -357,5 +372,5 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, bool, error) {
 	}
 
 	// create all dirs
-	return dstfiles, false, self.makeAllDirs(tomake)
+	return dstfiles, tokill, self.makeAllDirs(tomake)
 }
