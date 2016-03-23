@@ -19,6 +19,7 @@ var Rescan bool = false
 var RemoveOld bool = false
 
 var SameFileError = errors.New("the same file as detected by OS")
+var AlreadyExistError = errors.New("file already exists at dst")
 var IdenticalError = errors.New("the files are identical")
 var GarbageError = errors.New("not an image")
 

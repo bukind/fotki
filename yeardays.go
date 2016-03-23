@@ -172,7 +172,7 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 				if os.SameFile(dstinfo, info.info) {
 					res = SameFileError
 				} else {
-					res = fmt.Errorf("file exists %s", dir.Path(dstname))
+					res = AlreadyExistError
 				}
 				return dir, false, res
 			}
@@ -207,6 +207,7 @@ func (self *yearDays) findDayDir(info *ImageInfo, dstname string) (*Directory, b
 	return dir, justmade, nil
 }
 
+// Compare the destination and the original.
 func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory, bool, error) {
 	var res error
 	dir, justmade := self.get_mondir(info.date.month)
@@ -214,7 +215,7 @@ func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory,
 		if os.SameFile(dstinfo, info.info) {
 			res = SameFileError
 		} else {
-			res = fmt.Errorf("file exists %s", dir.Path(dstname))
+			res = AlreadyExistError
 		}
 	} else {
 		// file not found
@@ -224,6 +225,7 @@ func (self *yearDays) findMonthDir(info *ImageInfo, dstname string) (*Directory,
 }
 
 // check if the destination is the same as origin
+/*
 func (self *yearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, error) {
 	dstinfo, err := os.Stat(dst)
 	if err != nil {
@@ -234,6 +236,7 @@ func (self *yearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, erro
 	}
 	return "", fmt.Errorf("file exists %s", dst)
 }
+ */
 
 func makedir(dir string) (os.FileInfo, error) {
 	info, err := os.Lstat(dir)
@@ -331,27 +334,19 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, bool, error) {
 
 	var dstfiles []string
 	var tomake []*Directory
-	dir, justmade, err := self.findMonthDir(info, dstname)
-	if err != nil {
-		if err != SameFileError {
-			return dstfiles, false, err
-		}
-	} else {
-		dstfiles = append(dstfiles, dir.Path(dstname))
-		if justmade {
-			tomake = append(tomake, dir)
-		}
-	}
+	funcs := [...]func(*ImageInfo, string)(*Directory,bool,error){self.findMonthDir, self.findDayDir}
 
-	dir, justmade, err = self.findDayDir(info, dstname)
-	if err != nil {
-		if err != SameFileError {
-			return dstfiles, false, err
-		}
-	} else {
-		dstfiles = append(dstfiles, dir.Path(dstname))
-		if justmade {
-			tomake = append(tomake, dir)
+	for _, f := range funcs {
+	    dir, justmade, err := f(info, dstname)
+		if err != nil {
+		    if err != SameFileError {
+			    return dstfiles, false, err
+			}
+		} else {
+		    dstfiles = append(dstfiles, dir.Path(dstname))
+			if justmade {
+			   tomake = append(tomake, dir)
+			}
 		}
 	}
 
