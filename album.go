@@ -242,15 +242,15 @@ func (self *Album) Relocate() error {
 		}
 
 		if len(dstfiles) > 0 {
-		    for _, dst := range dstfiles {
-			    if err := self.linkImage(info.path, dst); err != nil {
-				    self.failed[info.path] = err
-			    }
+			for _, dst := range dstfiles {
+				if err := self.linkImage(info.path, dst); err != nil {
+					self.failed[info.path] = err
+				}
 			}
 		}
 
 		if maykill && RemoveOld {
-		    // we can remove the file from the old location
+			// we can remove the file from the old location
 		}
 	}
 

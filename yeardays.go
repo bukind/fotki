@@ -236,7 +236,7 @@ func (self *yearDays) compareInfo(dst string, srcinfo os.FileInfo) (string, erro
 	}
 	return "", fmt.Errorf("file exists %s", dst)
 }
- */
+*/
 
 func makedir(dir string) (os.FileInfo, error) {
 	info, err := os.Lstat(dir)
@@ -334,18 +334,24 @@ func (self *yearDays) Adopt(info *ImageInfo) ([]string, bool, error) {
 
 	var dstfiles []string
 	var tomake []*Directory
-	funcs := [...]func(*ImageInfo, string)(*Directory,bool,error){self.findMonthDir, self.findDayDir}
+	funcs := [...]func(*ImageInfo, string) (*Directory, bool, error){self.findMonthDir, self.findDayDir}
 
+	tokill := True // allow to kill the original file
 	for _, f := range funcs {
-	    dir, justmade, err := f(info, dstname)
+		dir, justmade, err := f(info, dstname)
 		if err != nil {
-		    if err != SameFileError {
-			    return dstfiles, false, err
+			if err == SameFileError {
+				continue
 			}
+			// if err == AlreadyExistError {
+			//    continue
+			// }
+			return dstfiles, false, err
 		} else {
-		    dstfiles = append(dstfiles, dir.Path(dstname))
+			// the file does not exist yet
+			dstfiles = append(dstfiles, dir.Path(dstname))
 			if justmade {
-			   tomake = append(tomake, dir)
+				tomake = append(tomake, dir)
 			}
 		}
 	}
