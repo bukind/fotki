@@ -251,6 +251,7 @@ func (self *Album) Relocate() error {
 
 		if maykill && RemoveOld {
 			// we can remove the file from the old location
+			fmt.Println("# please remove ", info.path)
 		}
 	}
 
